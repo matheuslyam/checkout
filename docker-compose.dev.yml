@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  checkout-dev:
+    container_name: checkout_dev
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      # Monta o código fonte no container
+      - .:/app
+      # Volume separado para node_modules (não sobrescreve o local)
+      - checkout_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - checkout_network
+
+networks:
+  checkout_network:
+    driver: bridge
+
+volumes:
+  checkout_node_modules:
