@@ -1,7 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { ShoppingBag, Truck, Shield, Check } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ShoppingBag, Truck, Shield, Check, Loader2 } from 'lucide-react'
 import { useCheckout } from '@/store/CheckoutContext'
 
 const PRODUCT = {
@@ -13,11 +13,37 @@ const PRODUCT = {
 }
 
 export function OrderSummary() {
-    const { state } = useCheckout()
+    const { state, isHydrated } = useCheckout()
 
     const discount = state.metodoPagamento === 'pix' ? PRODUCT.price * 0.05 : 0
-    const finalPrice = PRODUCT.price - discount
-    const frete = 0 // Frete grátis
+    const subtotal = PRODUCT.price
+    const frete = state.frete || 0
+    const finalPrice = subtotal - discount + frete
+
+    // Skeleton while hydrating
+    if (!isHydrated) {
+        return (
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 lg:p-8 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800 animate-pulse">
+                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-100 dark:border-gray-800">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+                    <div className="h-5 w-40 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+                <div className="flex gap-4 mb-6">
+                    <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
+                    <div className="flex-1 space-y-2">
+                        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
+                        <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    <div className="flex justify-between">
+                        <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+                        <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <motion.div
@@ -60,19 +86,52 @@ export function OrderSummary() {
             <div className="space-y-3 mb-6 pb-6 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
-                    <span className="text-gray-900 dark:text-white">R$ {PRODUCT.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-gray-900 dark:text-white">
+                        R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
                 </div>
 
-                {discount > 0 && (
-                    <div className="flex justify-between text-sm">
-                        <span className="text-green-600 dark:text-green-400">Desconto PIX (5%)</span>
-                        <span className="text-green-600 dark:text-green-400">- R$ {discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                )}
+                <AnimatePresence>
+                    {discount > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex justify-between text-sm overflow-hidden"
+                        >
+                            <span className="text-green-600 dark:text-green-400">Desconto PIX (5%)</span>
+                            <span className="text-green-600 dark:text-green-400">
+                                - R$ {discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <div className="flex justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Frete</span>
-                    <span className="text-green-600 dark:text-green-400 font-medium">Grátis</span>
+                    <AnimatePresence mode="wait">
+                        {frete > 0 ? (
+                            <motion.span
+                                key="frete-value"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="text-gray-900 dark:text-white"
+                            >
+                                R$ {frete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </motion.span>
+                        ) : (
+                            <motion.span
+                                key="frete-pending"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="text-gray-400 dark:text-gray-500 italic text-xs"
+                            >
+                                — a calcular
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -80,9 +139,14 @@ export function OrderSummary() {
             <div className="flex justify-between items-center mb-6">
                 <span className="text-lg font-semibold text-gray-900 dark:text-white">Total</span>
                 <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <motion.p
+                        key={finalPrice}
+                        initial={{ scale: 0.95 }}
+                        animate={{ scale: 1 }}
+                        className="text-2xl font-bold text-gray-900 dark:text-white"
+                    >
                         R$ {finalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    </motion.p>
                     {state.metodoPagamento === 'cartao' && state.parcelas > 1 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             ou {state.parcelas}x de R$ {(finalPrice / state.parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -95,7 +159,11 @@ export function OrderSummary() {
             <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                     <Truck className="w-4 h-4 text-green-500" />
-                    <span>Entrega grátis para todo o Brasil</span>
+                    <span>
+                        {frete > 0
+                            ? `Frete calculado para ${state.estado || 'sua região'}`
+                            : 'Informe o CEP para calcular frete'}
+                    </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                     <Shield className="w-4 h-4 text-blue-500" />

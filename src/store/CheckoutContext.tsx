@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, useState, type ReactNode } from 'react'
 
 // ============================================
 // Types
@@ -29,6 +29,9 @@ export interface CheckoutState {
     // Step 3: Payment
     metodoPagamento: MetodoPagamento
     parcelas: number
+
+    // Shipping
+    frete: number
 }
 
 type CheckoutAction =
@@ -57,6 +60,7 @@ const initialState: CheckoutState = {
     estado: '',
     metodoPagamento: null,
     parcelas: 1,
+    frete: 0,
 }
 
 // ============================================
@@ -107,6 +111,7 @@ function checkoutReducer(state: CheckoutState, action: CheckoutAction): Checkout
 // ============================================
 interface CheckoutContextValue {
     state: CheckoutState
+    isHydrated: boolean
     nextStep: () => void
     prevStep: () => void
     goToStep: (step: 1 | 2 | 3) => void
@@ -130,8 +135,9 @@ interface CheckoutProviderProps {
 
 export function CheckoutProvider({ children }: CheckoutProviderProps) {
     const [state, dispatch] = useReducer(checkoutReducer, initialState)
+    const [isHydrated, setIsHydrated] = useState(false)
 
-    // Hydrate state from sessionStorage on mount
+    // Hydrate state from sessionStorage on mount (client-side only)
     useEffect(() => {
         try {
             const stored = sessionStorage.getItem(STORAGE_KEY)
@@ -141,17 +147,23 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
             }
         } catch (error) {
             console.error('Failed to hydrate checkout state:', error)
+        } finally {
+            // Always mark as hydrated after attempting to load
+            setIsHydrated(true)
         }
     }, [])
 
-    // Persist state to sessionStorage on changes
+    // Persist state to sessionStorage on changes (only after hydration)
     useEffect(() => {
+        // Skip saving until hydration is complete to avoid overwriting stored data
+        if (!isHydrated) return
+
         try {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
         } catch (error) {
             console.error('Failed to persist checkout state:', error)
         }
-    }, [state])
+    }, [state, isHydrated])
 
     // Actions
     const nextStep = () => dispatch({ type: 'NEXT_STEP' })
@@ -169,6 +181,7 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
         <CheckoutContext.Provider
             value={{
                 state,
+                isHydrated,
                 nextStep,
                 prevStep,
                 goToStep,
@@ -190,4 +203,43 @@ export function useCheckout() {
         throw new Error('useCheckout must be used within a CheckoutProvider')
     }
     return context
+}
+
+// ============================================
+// Loading Skeleton Component
+// ============================================
+export function CheckoutSkeleton() {
+    return (
+        <div className="animate-pulse space-y-6">
+            {/* Stepper skeleton */}
+            <div className="flex items-center justify-between mb-10">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center flex-1">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        <div className="ml-3 h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded hidden sm:block" />
+                        {i < 3 && <div className="flex-1 mx-4 h-0.5 bg-gray-200 dark:bg-gray-700 rounded-full" />}
+                    </div>
+                ))}
+            </div>
+
+            {/* Title skeleton */}
+            <div className="space-y-2">
+                <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded" />
+            </div>
+
+            {/* Form fields skeleton */}
+            <div className="space-y-5">
+                {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="space-y-2">
+                        <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+                        <div className="h-12 w-full bg-gray-200 dark:bg-gray-700 rounded-xl" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Button skeleton */}
+            <div className="h-14 w-full bg-gray-200 dark:bg-gray-700 rounded-xl" />
+        </div>
+    )
 }

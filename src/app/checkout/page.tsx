@@ -1,6 +1,6 @@
 'use client'
 
-import { useCheckout } from '@/store/CheckoutContext'
+import { useCheckout, CheckoutSkeleton } from '@/store/CheckoutContext'
 import { AnimatePresence } from 'framer-motion'
 import {
     StepIdentificacao,
@@ -11,7 +11,7 @@ import {
 } from '@/components/checkout'
 
 export default function CheckoutPage() {
-    const { state } = useCheckout()
+    const { state, isHydrated } = useCheckout()
 
     const renderStep = () => {
         switch (state.step) {
@@ -47,13 +47,20 @@ export default function CheckoutPage() {
                     {/* Form Section */}
                     <div className="lg:col-span-2 order-2 lg:order-1">
                         <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 lg:p-10 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800">
-                            {/* Stepper */}
-                            <Stepper />
+                            {/* Show skeleton while hydrating */}
+                            {!isHydrated ? (
+                                <CheckoutSkeleton />
+                            ) : (
+                                <>
+                                    {/* Stepper */}
+                                    <Stepper />
 
-                            {/* Step Content with Animation */}
-                            <AnimatePresence mode="wait">
-                                {renderStep()}
-                            </AnimatePresence>
+                                    {/* Step Content with Animation */}
+                                    <AnimatePresence mode="wait">
+                                        {renderStep()}
+                                    </AnimatePresence>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -75,3 +82,4 @@ export default function CheckoutPage() {
         </main>
     )
 }
+
