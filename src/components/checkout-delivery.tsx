@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Bike, Package, Loader2, Truck } from "lucide-react"
+import { Bike, Package, Loader2, Truck, ArrowLeft } from "lucide-react"
 import { useCheckout } from "@/store/CheckoutContext"
 import { useState, useEffect } from "react"
 
@@ -42,7 +42,7 @@ function DeliverySkeleton() {
 }
 
 export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
-    const { state, updateData, isHydrated } = useCheckout()
+    const { state, updateData, prevStep, isHydrated } = useCheckout()
     const [isLoadingCep, setIsLoadingCep] = useState(false)
     const [cepError, setCepError] = useState<string | null>(null)
 
@@ -141,8 +141,8 @@ export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
             {/* Shipping Info Box */}
             {state.estado.length === 2 && (
                 <div className={`mb-6 p-3 rounded-xl flex items-center gap-3 transition-all duration-300 ${isSulSudeste
-                        ? 'bg-green-900/20 border border-green-800'
-                        : 'bg-amber-900/20 border border-amber-800'
+                    ? 'bg-green-900/20 border border-green-800'
+                    : 'bg-amber-900/20 border border-amber-800'
                     }`}>
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSulSudeste ? 'bg-green-900/40' : 'bg-amber-900/40'
                         }`}>
@@ -271,21 +271,31 @@ export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
                 </div>
             </div>
 
-            {/* Action Button */}
-            <Button
-                onClick={onNext}
-                disabled={!allFieldsFilled || isLoadingCep}
-                className="h-14 w-full rounded-2xl bg-[#1A7DFD] text-lg font-semibold hover:bg-[#1565CC] shadow-[0_0_20px_rgba(26,125,253,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {isLoadingCep ? (
-                    <span className="flex items-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Buscando CEP...
-                    </span>
-                ) : (
-                    'Ir para o Pagamento'
-                )}
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+                <Button
+                    onClick={prevStep}
+                    variant="outline"
+                    className="h-14 px-6 rounded-2xl border-white/10 bg-zinc-800 text-white hover:bg-zinc-700"
+                >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Voltar
+                </Button>
+                <Button
+                    onClick={onNext}
+                    disabled={!allFieldsFilled || isLoadingCep}
+                    className="flex-1 h-14 rounded-2xl bg-[#1A7DFD] text-lg font-semibold hover:bg-[#1565CC] shadow-[0_0_20px_rgba(26,125,253,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isLoadingCep ? (
+                        <span className="flex items-center gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Buscando CEP...
+                        </span>
+                    ) : (
+                        'Ir para o Pagamento'
+                    )}
+                </Button>
+            </div>
         </div>
     )
 }
