@@ -3,20 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bike, Truck, User } from "lucide-react"
-import { useCheckout, CheckoutSkeleton } from "@/store/CheckoutContext"
+import Image from "next/image"
 
-export function CheckoutCard() {
-    const { state, updateData, isHydrated } = useCheckout()
+interface CheckoutCardProps {
+    onNext: () => void;
+}
 
-    // Show skeleton while hydrating to prevent flash of empty fields
-    if (!isHydrated) {
-        return (
-            <div className="w-full max-w-md rounded-3xl bg-[#121212] p-8 shadow-2xl border border-white/5">
-                <CheckoutSkeleton />
-            </div>
-        )
-    }
-
+export function CheckoutCard({ onNext }: CheckoutCardProps) {
     return (
         <div className="w-full max-w-md rounded-3xl bg-[#121212] p-8 shadow-2xl border border-white/5">
             {/* Header */}
@@ -26,10 +19,12 @@ export function CheckoutCard() {
 
             {/* Product Image Placeholder */}
             <div className="relative mb-4 flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-white p-4">
+                {/* Ideally this would be the actual image. specialized placeholder for now */}
                 <div className="flex flex-col items-center gap-2">
                     <Bike className="h-24 w-24 text-zinc-900" strokeWidth={1} />
                     <span className="text-xs text-zinc-400">Bike Image</span>
                 </div>
+                {/* <Image src="/path/to/bike.png" alt="Ambtus Flash" fill className="object-contain" /> */}
             </div>
 
             {/* Product Details */}
@@ -63,19 +58,14 @@ export function CheckoutCard() {
                         <label className="ml-1 text-sm text-zinc-300">Nome:</label>
                         <Input
                             placeholder="Ex: Pedro da Silva"
-                            value={state.nome}
-                            onChange={(e) => updateData('nome', e.target.value)}
                             className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="ml-1 text-sm text-zinc-300">E-mail:</label>
+                        <label className="ml-1 text-sm text-zinc-300">G-mail:</label>
                         <Input
-                            type="email"
                             placeholder="Ex: seugmail@gmail.com"
-                            value={state.email}
-                            onChange={(e) => updateData('email', e.target.value)}
                             className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
                         />
                     </div>
@@ -83,13 +73,7 @@ export function CheckoutCard() {
                     <div className="space-y-1.5">
                         <label className="ml-1 text-sm text-zinc-300">CPF:</label>
                         <Input
-                            placeholder="Ex: 12345678900"
-                            value={state.cpf}
-                            onChange={(e) => {
-                                // Remove non-numeric characters
-                                const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11)
-                                updateData('cpf', numericValue)
-                            }}
+                            placeholder="Ex: 123.456.789-00"
                             className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
                         />
                     </div>
@@ -98,6 +82,7 @@ export function CheckoutCard() {
 
             {/* Action Button */}
             <Button
+                onClick={onNext}
                 className="h-14 w-full rounded-2xl bg-[#1A7DFD] text-lg font-semibold hover:bg-[#1565CC] shadow-[0_0_20px_rgba(26,125,253,0.3)]"
             >
                 Continuar para Entrega
