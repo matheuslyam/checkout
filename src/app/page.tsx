@@ -2,22 +2,16 @@
 
 import { CheckoutCard } from "@/components/checkout-card"
 import { CheckoutDelivery } from "@/components/checkout-delivery"
-import { useState } from "react"
+import { useCheckout } from "@/store/CheckoutContext"
 import { AnimatePresence, motion } from "framer-motion"
 
 export default function Home() {
-    const [step, setStep] = useState(1)
-
-    const handleNextStep = () => {
-        setStep(2)
-    }
-
-    // Future: handleBackStep if needed
+    const { state, nextStep, goToStep } = useCheckout()
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-[#050505] p-4 text-white">
             <AnimatePresence mode="wait">
-                {step === 1 ? (
+                {state.step === 1 ? (
                     <motion.div
                         key="step1"
                         initial={{ opacity: 0, x: -20 }}
@@ -26,7 +20,7 @@ export default function Home() {
                         transition={{ duration: 0.3 }}
                         className="w-full flex justify-center"
                     >
-                        <CheckoutCard onNext={handleNextStep} />
+                        <CheckoutCard onNext={nextStep} />
                     </motion.div>
                 ) : (
                     <motion.div
