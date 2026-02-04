@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useReducer, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 
 // ============================================
 // Types
@@ -166,29 +166,31 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
     }, [state, isHydrated])
 
     // Actions
-    const nextStep = () => dispatch({ type: 'NEXT_STEP' })
-    const prevStep = () => dispatch({ type: 'PREV_STEP' })
-    const goToStep = (step: 1 | 2 | 3) => dispatch({ type: 'GO_TO_STEP', payload: step })
-    const updateData = <K extends keyof CheckoutState>(key: K, value: CheckoutState[K]) => {
+    const nextStep = useCallback(() => dispatch({ type: 'NEXT_STEP' }), [])
+    const prevStep = useCallback(() => dispatch({ type: 'PREV_STEP' }), [])
+    const goToStep = useCallback((step: 1 | 2 | 3) => dispatch({ type: 'GO_TO_STEP', payload: step }), [])
+
+    const updateData = useCallback(<K extends keyof CheckoutState>(key: K, value: CheckoutState[K]) => {
         dispatch({ type: 'UPDATE_DATA', payload: { key, value } })
-    }
-    const reset = () => {
+    }, [])
+
+    const reset = useCallback(() => {
         sessionStorage.removeItem(STORAGE_KEY)
         dispatch({ type: 'RESET' })
-    }
+    }, [])
+
+    const value = useMemo(() => ({
+        state,
+        isHydrated,
+        nextStep,
+        prevStep,
+        goToStep,
+        updateData,
+        reset,
+    }), [state, isHydrated, nextStep, prevStep, goToStep, updateData, reset])
 
     return (
-        <CheckoutContext.Provider
-            value={{
-                state,
-                isHydrated,
-                nextStep,
-                prevStep,
-                goToStep,
-                updateData,
-                reset,
-            }}
-        >
+        <CheckoutContext.Provider value={value}>
             {children}
         </CheckoutContext.Provider>
     )
