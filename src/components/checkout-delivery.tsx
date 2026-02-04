@@ -42,7 +42,7 @@ function DeliverySkeleton() {
 }
 
 export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
-    const { state, updateData, prevStep, isHydrated } = useCheckout()
+    const { state, updateData, prevStep, validationErrors, isHydrated } = useCheckout()
     const [isLoadingCep, setIsLoadingCep] = useState(false)
     const [cepError, setCepError] = useState<string | null>(null)
 
@@ -190,8 +190,8 @@ export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
                                 </div>
                             )}
                         </div>
-                        {cepError && (
-                            <p className="text-xs text-red-400">{cepError}</p>
+                        {(cepError || validationErrors.cep) && (
+                            <p className="text-xs text-red-400">{cepError || validationErrors.cep}</p>
                         )}
                         <p className="text-[10px] text-zinc-500">Digite o CEP para buscar automaticamente</p>
                     </div>
@@ -203,8 +203,11 @@ export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
                             placeholder="Ex: Avenida Paulista"
                             value={state.endereco}
                             onChange={(e) => updateData('endereco', e.target.value)}
-                            className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
+                            className={`h-12 border-[0.5px] bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl ${validationErrors.endereco ? 'border-red-500' : 'border-white/10'}`}
                         />
+                        {validationErrors.endereco && (
+                            <p className="ml-1 text-xs text-red-400">{validationErrors.endereco}</p>
+                        )}
                     </div>
 
                     {/* Complemento e Número */}
@@ -224,8 +227,11 @@ export function CheckoutDelivery({ onNext }: CheckoutDeliveryProps) {
                                 placeholder="Ex: 123"
                                 value={state.numero}
                                 onChange={(e) => updateData('numero', e.target.value)}
-                                className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
+                                className={`h-12 border-[0.5px] bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl ${validationErrors.numero ? 'border-red-500' : 'border-white/10'}`}
                             />
+                            {validationErrors.numero && (
+                                <p className="ml-1 text-xs text-red-400">{validationErrors.numero}</p>
+                            )}
                         </div>
                     </div>
 

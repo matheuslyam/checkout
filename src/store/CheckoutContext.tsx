@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
+import { validateStep1, validateStep2, validateStep3, type ValidationErrors, type ValidationResult } from '@/lib/validation'
 
 // ============================================
 // Types
@@ -142,12 +143,15 @@ function checkoutReducer(state: CheckoutState, action: CheckoutAction): Checkout
 interface CheckoutContextValue {
     state: CheckoutState
     isHydrated: boolean
-    nextStep: () => void
+    validationErrors: ValidationErrors
+    nextStep: () => boolean  // Returns true if validation passed
     prevStep: () => void
     goToStep: (step: 1 | 2 | 3 | 4) => void
     updateData: <K extends keyof CheckoutState>(key: K, value: CheckoutState[K]) => void
     setPaymentResult: (data: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string }) => void
     setPaymentStatus: (status: 'PENDING' | 'CONFIRMED' | 'FAILED') => void
+    validateCurrentStep: () => ValidationResult
+    clearValidationErrors: () => void
     reset: () => void
 }
 
@@ -168,6 +172,7 @@ interface CheckoutProviderProps {
 export function CheckoutProvider({ children }: CheckoutProviderProps) {
     const [state, dispatch] = useReducer(checkoutReducer, initialState)
     const [isHydrated, setIsHydrated] = useState(false)
+    const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
 
     // Hydrate state from sessionStorage on mount (client-side only)
     useEffect(() => {
@@ -197,12 +202,73 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
         }
     }, [state, isHydrated])
 
-    // Actions
-    const nextStep = useCallback(() => dispatch({ type: 'NEXT_STEP' }), [])
-    const prevStep = useCallback(() => dispatch({ type: 'PREV_STEP' }), [])
-    const goToStep = useCallback((step: 1 | 2 | 3 | 4) => dispatch({ type: 'GO_TO_STEP', payload: step }), [])
+    // Validate current step data
+    const validateCurrentStep = useCallback((): ValidationResult => {
+        switch (state.step) {
+            case 1:
+                return validateStep1({
+                    email: state.email,
+                    cpf: state.cpf.replace(/\D/g, ''),
+                    nome: state.nome,
+                    telefone: state.telefone,
+                })
+            case 2:
+                return validateStep2({
+                    cep: state.cep.replace(/\D/g, ''),
+                    endereco: state.endereco,
+                    numero: state.numero,
+                    complemento: state.complemento,
+                    bairro: state.bairro,
+                    cidade: state.cidade,
+                    estado: state.estado,
+                })
+            case 3:
+                return validateStep3({
+                    metodoPagamento: state.metodoPagamento || undefined,
+                })
+            default:
+                return { valid: true, errors: {} }
+        }
+    }, [state])
+
+    // Clear validation errors
+    const clearValidationErrors = useCallback(() => {
+        setValidationErrors({})
+    }, [])
+
+    // Actions with validation
+    const nextStep = useCallback((): boolean => {
+        const result = validateCurrentStep()
+        if (!result.valid) {
+            setValidationErrors(result.errors)
+            console.log('[Validation] Step', state.step, 'failed:', result.errors)
+            return false
+        }
+        setValidationErrors({})
+        dispatch({ type: 'NEXT_STEP' })
+        return true
+    }, [validateCurrentStep, state.step])
+
+    const prevStep = useCallback(() => {
+        setValidationErrors({})
+        dispatch({ type: 'PREV_STEP' })
+    }, [])
+
+    const goToStep = useCallback((step: 1 | 2 | 3 | 4) => {
+        setValidationErrors({})
+        dispatch({ type: 'GO_TO_STEP', payload: step })
+    }, [])
 
     const updateData = useCallback(<K extends keyof CheckoutState>(key: K, value: CheckoutState[K]) => {
+        // Clear the specific field error when user updates it
+        setValidationErrors(prev => {
+            if (prev[key as string]) {
+                const updated = { ...prev }
+                delete updated[key as string]
+                return updated
+            }
+            return prev
+        })
         dispatch({ type: 'UPDATE_DATA', payload: { key, value } })
     }, [])
 
@@ -216,20 +282,24 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
 
     const reset = useCallback(() => {
         sessionStorage.removeItem(STORAGE_KEY)
+        setValidationErrors({})
         dispatch({ type: 'RESET' })
     }, [])
 
     const value = useMemo(() => ({
         state,
         isHydrated,
+        validationErrors,
         nextStep,
         prevStep,
         goToStep,
         updateData,
         setPaymentResult,
         setPaymentStatus,
+        validateCurrentStep,
+        clearValidationErrors,
         reset,
-    }), [state, isHydrated, nextStep, prevStep, goToStep, updateData, setPaymentResult, setPaymentStatus, reset])
+    }), [state, isHydrated, validationErrors, nextStep, prevStep, goToStep, updateData, setPaymentResult, setPaymentStatus, validateCurrentStep, clearValidationErrors, reset])
 
     return (
         <CheckoutContext.Provider value={value}>

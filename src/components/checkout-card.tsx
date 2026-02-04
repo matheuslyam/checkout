@@ -34,7 +34,7 @@ function CardSkeleton() {
 }
 
 export function CheckoutCard({ onNext }: CheckoutCardProps) {
-    const { state, updateData, isHydrated } = useCheckout()
+    const { state, updateData, validationErrors, isHydrated } = useCheckout()
 
     // Show skeleton while hydrating to prevent flash of empty fields
     if (!isHydrated) {
@@ -95,8 +95,11 @@ export function CheckoutCard({ onNext }: CheckoutCardProps) {
                             placeholder="Ex: Pedro da Silva"
                             value={state.nome}
                             onChange={(e) => updateData('nome', e.target.value)}
-                            className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
+                            className={`h-12 border-[0.5px] bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl ${validationErrors.nome ? 'border-red-500' : 'border-white/10'}`}
                         />
+                        {validationErrors.nome && (
+                            <p className="ml-1 text-xs text-red-400">{validationErrors.nome}</p>
+                        )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -106,8 +109,11 @@ export function CheckoutCard({ onNext }: CheckoutCardProps) {
                             placeholder="Ex: seuemail@gmail.com"
                             value={state.email}
                             onChange={(e) => updateData('email', e.target.value)}
-                            className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
+                            className={`h-12 border-[0.5px] bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl ${validationErrors.email ? 'border-red-500' : 'border-white/10'}`}
                         />
+                        {validationErrors.email && (
+                            <p className="ml-1 text-xs text-red-400">{validationErrors.email}</p>
+                        )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -120,8 +126,11 @@ export function CheckoutCard({ onNext }: CheckoutCardProps) {
                                 const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11)
                                 updateData('cpf', numericValue)
                             }}
-                            className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
+                            className={`h-12 border-[0.5px] bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl ${validationErrors.cpf ? 'border-red-500' : 'border-white/10'}`}
                         />
+                        {validationErrors.cpf && (
+                            <p className="ml-1 text-xs text-red-400">{validationErrors.cpf}</p>
+                        )}
                     </div>
                 </div>
             </div>
