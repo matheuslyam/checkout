@@ -2,14 +2,49 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Bike, Truck, User } from "lucide-react"
-import Image from "next/image"
+import { Bike, Truck, User, Loader2 } from "lucide-react"
+import { useCheckout } from "@/store/CheckoutContext"
 
 interface CheckoutCardProps {
     onNext: () => void;
 }
 
+// Skeleton component for loading state
+function CardSkeleton() {
+    return (
+        <div className="animate-pulse space-y-6">
+            <div className="h-8 w-48 mx-auto bg-zinc-800 rounded" />
+            <div className="aspect-[4/3] w-full bg-zinc-800 rounded-2xl" />
+            <div className="space-y-2">
+                <div className="h-8 w-40 mx-auto bg-zinc-800 rounded" />
+                <div className="h-4 w-32 mx-auto bg-zinc-800 rounded" />
+            </div>
+            <div className="h-10 w-32 mx-auto bg-zinc-800 rounded" />
+            <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2">
+                        <div className="h-4 w-16 bg-zinc-800 rounded" />
+                        <div className="h-12 w-full bg-zinc-800 rounded-xl" />
+                    </div>
+                ))}
+            </div>
+            <div className="h-14 w-full bg-zinc-800 rounded-2xl" />
+        </div>
+    )
+}
+
 export function CheckoutCard({ onNext }: CheckoutCardProps) {
+    const { state, updateData, isHydrated } = useCheckout()
+
+    // Show skeleton while hydrating to prevent flash of empty fields
+    if (!isHydrated) {
+        return (
+            <div className="w-full max-w-md rounded-3xl bg-[#121212] p-8 shadow-2xl border border-white/5">
+                <CardSkeleton />
+            </div>
+        )
+    }
+
     return (
         <div className="w-full max-w-md rounded-3xl bg-[#121212] p-8 shadow-2xl border border-white/5">
             {/* Header */}
@@ -58,14 +93,19 @@ export function CheckoutCard({ onNext }: CheckoutCardProps) {
                         <label className="ml-1 text-sm text-zinc-300">Nome:</label>
                         <Input
                             placeholder="Ex: Pedro da Silva"
+                            value={state.nome}
+                            onChange={(e) => updateData('nome', e.target.value)}
                             className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="ml-1 text-sm text-zinc-300">G-mail:</label>
+                        <label className="ml-1 text-sm text-zinc-300">Email:</label>
                         <Input
-                            placeholder="Ex: seugmail@gmail.com"
+                            type="email"
+                            placeholder="Ex: seuemail@gmail.com"
+                            value={state.email}
+                            onChange={(e) => updateData('email', e.target.value)}
                             className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
                         />
                     </div>
@@ -73,7 +113,13 @@ export function CheckoutCard({ onNext }: CheckoutCardProps) {
                     <div className="space-y-1.5">
                         <label className="ml-1 text-sm text-zinc-300">CPF:</label>
                         <Input
-                            placeholder="Ex: 123.456.789-00"
+                            placeholder="Ex: 12345678900"
+                            value={state.cpf}
+                            onChange={(e) => {
+                                // Remove non-numeric characters and limit to 11 digits
+                                const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11)
+                                updateData('cpf', numericValue)
+                            }}
                             className="h-12 border-[0.5px] border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl"
                         />
                     </div>
