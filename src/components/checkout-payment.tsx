@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { useCheckout } from "@/store/CheckoutContext"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { ArrowLeft, QrCode, Copy, Check, Loader2, CreditCard, Clock } from "lucide-react"
+import { ArrowLeft, Smartphone, Copy, Check, Loader2, CreditCard, Clock } from "lucide-react"
 
 interface CheckoutPaymentProps {
     onBack: () => void
@@ -76,7 +76,7 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
             timeoutRef.current = setTimeout(() => {
                 if (pollingRef.current) clearInterval(pollingRef.current)
                 setIsPolling(false)
-                setError('O QR Code expirou. Por favor, gere um novo.')
+                setError('O código PIX expirou. Por favor, gere um novo.')
             }, POLLING_TIMEOUT)
         }
     }, [state.paymentId, state.paymentStatus, isPolling, checkPaymentStatus])
@@ -117,10 +117,10 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                 throw new Error(data.error || 'Erro ao gerar PIX')
             }
 
-            // Set payment result in context
+            // Set payment result in context (no QR code needed)
             setPaymentResult({
                 paymentId: data.payment.id,
-                pixQrCode: data.payment.pixQrCode?.encodedImage || '',
+                pixQrCode: '', // Not used for mobile
                 pixPayload: data.payment.pixQrCode?.payload || '',
                 pixExpiresAt: data.payment.pixQrCode?.expirationDate || '',
             })
@@ -192,7 +192,7 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                     >
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${state.metodoPagamento === 'pix' ? 'bg-green-500' : 'bg-zinc-800'
                             }`}>
-                            <QrCode className="w-6 h-6 text-white" />
+                            <Smartphone className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1 text-left">
                             <div className="flex items-center gap-2">
@@ -238,20 +238,24 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                 </div>
             )}
 
-            {/* PIX QR Code Display */}
-            {state.metodoPagamento === 'pix' && state.pixQrCode && (
+            {/* PIX Copy Code Section (No QR Code - Mobile First) */}
+            {state.metodoPagamento === 'pix' && state.pixPayload && (
                 <div className="mb-6 p-6 bg-zinc-900/50 rounded-2xl border border-white/5">
-                    {/* QR Code */}
-                    <div className="bg-white p-4 rounded-xl mx-auto w-fit mb-4">
-                        <img
-                            src={`data:image/png;base64,${state.pixQrCode}`}
-                            alt="QR Code PIX"
-                            className="w-48 h-48"
-                        />
+                    {/* PIX Instructions */}
+                    <div className="text-center mb-6">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/20 flex items-center justify-center">
+                            <Smartphone className="w-8 h-8 text-green-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-white mb-2">
+                            Código PIX Gerado!
+                        </h3>
+                        <p className="text-sm text-zinc-400">
+                            Copie o código abaixo e cole no app do seu banco
+                        </p>
                     </div>
 
                     {/* Status */}
-                    <div className="flex items-center justify-center gap-2 mb-4">
+                    <div className="flex items-center justify-center gap-2 mb-4 py-2 px-4 bg-zinc-800/50 rounded-xl">
                         {isPolling ? (
                             <>
                                 <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
@@ -260,29 +264,36 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                         ) : (
                             <>
                                 <Clock className="w-4 h-4 text-zinc-400" />
-                                <span className="text-sm text-zinc-400">QR Code válido por 15 minutos</span>
+                                <span className="text-sm text-zinc-400">Válido por 15 minutos</span>
                             </>
                         )}
                     </div>
 
-                    {/* Copy Button */}
+                    {/* Copy Button - Main CTA */}
                     <Button
                         onClick={handleCopyPix}
-                        variant="outline"
-                        className="w-full h-12 rounded-xl border-white/10 bg-zinc-800 text-white hover:bg-zinc-700"
+                        className={`w-full h-14 rounded-xl text-lg font-semibold transition-all ${copied
+                                ? 'bg-green-600 hover:bg-green-600'
+                                : 'bg-green-600 hover:bg-green-700 shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+                            }`}
                     >
                         {copied ? (
                             <>
-                                <Check className="w-4 h-4 mr-2 text-green-400" />
-                                Copiado!
+                                <Check className="w-5 h-5 mr-2" />
+                                Código Copiado!
                             </>
                         ) : (
                             <>
-                                <Copy className="w-4 h-4 mr-2" />
-                                Copiar código PIX
+                                <Copy className="w-5 h-5 mr-2" />
+                                Copiar Código PIX
                             </>
                         )}
                     </Button>
+
+                    {/* Helper Text */}
+                    <p className="text-center text-xs text-zinc-500 mt-4">
+                        Após o pagamento, a tela atualizará automaticamente
+                    </p>
                 </div>
             )}
 
@@ -325,7 +336,7 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                                 Gerando PIX...
                             </span>
                         ) : (
-                            'Gerar QR Code PIX'
+                            'Gerar Código PIX'
                         )}
                     </Button>
                 )}
