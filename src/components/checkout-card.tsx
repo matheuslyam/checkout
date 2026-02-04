@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input"
 import { Bike, Truck, User } from "lucide-react"
 import Image from "next/image"
 
-export function CheckoutCard() {
+interface CheckoutCardProps {
+    onNext: () => void;
+}
+
+export function CheckoutCard({ onNext }: CheckoutCardProps) {
     return (
         <div className="w-full max-w-md rounded-3xl bg-[#121212] p-8 shadow-2xl border border-white/5">
             {/* Header */}
@@ -78,6 +82,7 @@ export function CheckoutCard() {
 
             {/* Action Button */}
             <Button
+                onClick={onNext}
                 className="h-14 w-full rounded-2xl bg-[#1A7DFD] text-lg font-semibold hover:bg-[#1565CC] shadow-[0_0_20px_rgba(26,125,253,0.3)]"
             >
                 Continuar para Entrega
