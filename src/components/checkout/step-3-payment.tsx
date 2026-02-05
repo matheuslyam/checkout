@@ -10,11 +10,13 @@ import { Loader2, ChevronDown, ChevronUp, Copy, Check, Clock } from "lucide-reac
 
 export function Step3Payment({ onBack }: { onBack: () => void }) {
     const { state, updateData, setPaymentResult } = useCheckout()
-    // const { handleGeneratePix, isGeneratingPix } = usePayment() // We are simulating locally
+
+    // INTEGRATION: Use the real hook for PIX logic
+    const { handleGeneratePix, isGeneratingPix } = usePayment()
 
     // Local state for UI feedback
     const [copied, setCopied] = useState(false)
-    const [isSimulatingPix, setIsSimulatingPix] = useState(false)
+    // const [isSimulatingPix, setIsSimulatingPix] = useState(false) // Removed local simulation state
     const [timeLeft, setTimeLeft] = useState(600) // Default 10 min
     const [isInstallmentsOpen, setIsInstallmentsOpen] = useState(false)
     const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '' })
@@ -26,7 +28,7 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
 
     // Timer logic
     useEffect(() => {
-        if (!state.pixExpiresAt || !state.pixPayload) return
+        if (!state.pixExpiresAt) return
 
         const interval = setInterval(() => {
             const expires = new Date(state.pixExpiresAt).getTime()
@@ -35,8 +37,14 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
             setTimeLeft(diff)
         }, 1000)
 
+        // Initial calc
+        const expires = new Date(state.pixExpiresAt).getTime()
+        const now = Date.now()
+        const diff = Math.max(0, Math.floor((expires - now) / 1000))
+        setTimeLeft(diff)
+
         return () => clearInterval(interval)
-    }, [state.pixExpiresAt, state.pixPayload])
+    }, [state.pixExpiresAt])
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60).toString().padStart(2, '0')
@@ -44,39 +52,33 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
         return `${m}:${s}`
     }
 
-    const handleGeneratePix = async () => {
-        setIsSimulatingPix(true)
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 2000))
-
-        // Mock success
+    // SIMULATION for Card Payment (tokenization logic not implemented yet)
+    const handleCardPayment = async () => {
+        // Mock success for Card
         setPaymentResult({
-            paymentId: 'simulated_id',
+            paymentId: 'card_simulated_id',
             pixQrCode: '',
-            pixPayload: '00020101021226850014br.gov.bcb.pix2563pix.exem.simulacao.123',
-            pixExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes from now
+            pixPayload: '',
+            pixExpiresAt: ''
         })
-        setIsSimulatingPix(false)
+        updateData('step', 4) // Force navigation to step 4
     }
 
     // Sync accordion state with context method
     const selectedMethod = state.metodoPagamento
 
     const handleMethodSelect = (method: 'pix' | 'cartao') => {
-        if (selectedMethod === method) {
-            // Optional: Allow collapsing? Design suggests radio behavior.
-            // Keep expanded if clicked again? Usually accordions toggle.
-            // let's keep it simple: click expands and selects.
-            return
-        }
+        if (selectedMethod === method) return
         updateData('metodoPagamento', method)
     }
 
     const onCopyPix = async () => {
-        const code = state.pixPayload || "00020101021226850014br.gov.bcb.pix2563pix.exem" // Fallback simulation
-        await navigator.clipboard.writeText(code)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        const code = state.pixPayload || ""
+        if (code) {
+            await navigator.clipboard.writeText(code)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        }
     }
 
     // Format currency
@@ -251,16 +253,7 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
 
                                 <Button
                                     disabled={!isCardValid}
-                                    onClick={() => {
-                                        // Simulate successful payment
-                                        setPaymentResult({
-                                            paymentId: 'card_simulated_id',
-                                            pixQrCode: '',
-                                            pixPayload: '',
-                                            pixExpiresAt: ''
-                                        })
-                                        updateData('step', 4) // Force navigation to step 4
-                                    }}
+                                    onClick={handleCardPayment} // Cartão continua simulado
                                     className="w-full h-[40px] mt-2 rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-[12px] hover:opacity-90 transition-opacity border-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Finalizar Pagamento Seguro
@@ -310,11 +303,11 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                                         />
                                     </div>
                                     <Button
-                                        onClick={handleGeneratePix}
-                                        disabled={isSimulatingPix || !state.cpf || state.cpf.replace(/\D/g, '').length < 11}
+                                        onClick={handleGeneratePix} // REAL LOGIC
+                                        disabled={isGeneratingPix || !state.cpf || state.cpf.replace(/\D/g, '').length < 11}
                                         className="w-full h-[40px] rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-[13px] hover:opacity-90 transition-opacity border-none disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {isSimulatingPix ? <Loader2 className="animate-spin" /> : "Gerar Pix"}
+                                        {isGeneratingPix ? <Loader2 className="animate-spin" /> : "Gerar Pix"}
                                     </Button>
 
                                     <p className="text-[9px] text-[#585858] text-center leading-tight mt-2">
