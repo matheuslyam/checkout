@@ -2,7 +2,8 @@
 
 import { Step1Finalize } from "@/components/checkout/step-1-finalize"
 import { Step2Delivery } from "@/components/checkout/step-2-delivery"
-import { CheckoutPayment } from "@/components/checkout-payment"
+import { Step3Payment } from "@/components/checkout/step-3-payment"
+import { Step4Success } from "@/components/checkout/step-4-success"
 import { CheckoutSuccess } from "@/components/checkout-success"
 import { useCheckout } from "@/store/CheckoutContext"
 import { AnimatePresence, motion } from "framer-motion"
@@ -48,7 +49,7 @@ export default function Home() {
                         transition={{ duration: 0.3 }}
                         className="w-full flex justify-center"
                     >
-                        <CheckoutPayment onBack={prevStep} />
+                        <Step3Payment onBack={prevStep} />
                     </motion.div>
                 )
             case 4:
@@ -61,7 +62,7 @@ export default function Home() {
                         transition={{ duration: 0.4 }}
                         className="w-full flex justify-center"
                     >
-                        <CheckoutSuccess />
+                        <Step4Success />
                     </motion.div>
                 )
             default:

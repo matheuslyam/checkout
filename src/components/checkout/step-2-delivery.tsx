@@ -154,7 +154,7 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
 
                 {/* Details */}
                 <div className="flex flex-col w-full">
-                    <h3 className="font-audiowide text-[16px] text-[#1E90FF] tracking-wide uppercase leading-none mb-1 whitespace-nowrap">
+                    <h3 className="font-audiowide text-[19px] text-[#1E90FF] tracking-wide uppercase leading-none mb-1 whitespace-nowrap">
                         AMBTUS FLASH
                     </h3>
 
@@ -167,7 +167,7 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
                     </div>
 
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-white whitespace-nowrap">Total a pagar: R$ 12.490,00</span>
+                        <span className="text-[12px] text-white whitespace-nowrap">Total a pagar: R$ 12.490,00</span>
                         <span className="text-[10px] font-bold text-[#1E90FF] whitespace-nowrap">Até 12x de R$ 1.040,83</span>
                     </div>
                 </div>
@@ -295,7 +295,7 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
                         <Button
                             type="button"
                             onClick={onBack}
-                            className="w-[30%] h-[53px] rounded-[20px] bg-[#191919] text-white font-bold text-[15px] hover:bg-[#333] transition-colors border-[1px] border-[#383838]"
+                            className="w-[30%] h-[53px] rounded-[20px] bg-[#000000] text-white font-bold text-[15px] hover:bg-[#333] transition-colors border-[1px] !border-[#383838]"
                         >
                             Voltar
                         </Button>
