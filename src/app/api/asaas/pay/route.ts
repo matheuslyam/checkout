@@ -272,12 +272,21 @@ export async function POST(request: NextRequest) {
             externalReference,
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Payment] Error creating payment:', error)
 
-        // Don't expose internal errors to client
-        const message = error instanceof Error ? error.message : 'Erro interno'
+        // Don't expose internal errors to client unless they are friendly Asaas errors
+        const message = error.message || 'Erro interno'
         const isValidationError = message.includes('obrigatório') || message.includes('inválido')
+        const isAsaasError = error.code && error.status // Check if it's our enhanced error
+
+        // If it's a known Asaas error (like insufficient_funds), return the friendly message
+        if (isAsaasError) {
+            return NextResponse.json(
+                { error: message, code: error.code },
+                { status: 400 } // Always return 400 for business logic errors so frontend can handle gracefully
+            )
+        }
 
         return NextResponse.json(
             { error: isValidationError ? message : 'Erro ao processar pagamento' },

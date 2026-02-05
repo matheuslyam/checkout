@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { useCheckout } from "@/store/CheckoutContext"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ArrowLeft, Smartphone, Copy, Check, Loader2, CreditCard, Clock } from "lucide-react"
+import { useCheckoutToast } from "./ui/CheckoutToast"
+import { getProductById } from '@/lib/products'
 
 interface CheckoutPaymentProps {
     onBack: () => void
@@ -15,6 +17,7 @@ const POLLING_TIMEOUT = 15 * 60 * 1000 // 15 minutes
 
 export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
     const { state, updateData, setPaymentResult, setPaymentStatus, setInstallmentOptions, nextStep, isHydrated } = useCheckout()
+    const { showToast } = useCheckoutToast()
 
     const [isLoadingInstallments, setIsLoadingInstallments] = useState(false)
 
@@ -150,7 +153,10 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data.error || 'Erro ao gerar PIX')
+                // Throw enhanced Asaas error from backend
+                const error = new Error(data.error || 'Erro ao gerar PIX')
+                    ; (error as any).code = data.code
+                throw error
             }
 
             // Set payment result in context (no QR code needed)
@@ -163,13 +169,21 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
 
             console.log('[Payment] PIX generated:', data.payment.id)
 
-        } catch (err) {
-            console.error('[Payment] Error generating PIX:', err)
-            setError(err instanceof Error ? err.message : 'Erro ao gerar PIX')
+            showToast('Código PIX gerado com sucesso!', 'success')
+            nextStep()
+
+        } catch (err: any) {
+            console.error('Error generating PIX:', err)
+            const message = err.message || 'Erro ao comunicar com o gateway de pagamento'
+            // Show toast instead of setting inline error
+            showToast(message, 'error', 6000)
+            // DO NOT RESET FORM
         } finally {
             setIsGeneratingPix(false)
         }
     }
+
+
 
     // Copy PIX code
     const handleCopyPix = async () => {

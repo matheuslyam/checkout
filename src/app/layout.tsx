@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { CheckoutProvider } from '@/store/CheckoutContext'
+import { CheckoutToastProvider } from '@/components/ui/CheckoutToast'
 import './globals.css'
 
 const inter = Inter({
@@ -22,7 +23,9 @@ export default function RootLayout({
         <html lang="pt-BR">
             <body className={`${inter.variable} font-sans antialiased`}>
                 <CheckoutProvider>
-                    {children}
+                    <CheckoutToastProvider>
+                        {children}
+                    </CheckoutToastProvider>
                 </CheckoutProvider>
             </body>
         </html>

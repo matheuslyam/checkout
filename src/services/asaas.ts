@@ -107,10 +107,54 @@ export class AsaasService {
         this.client = axios.create({
             baseURL: apiUrl,
             headers: {
-                'Content-Type': 'application/json',
                 'access_token': apiKey,
             },
         })
+
+        // ============================================
+        // 🛡️ Error Resilience Interceptor
+        // ============================================
+        this.client.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (axios.isAxiosError(error) && error.response) {
+                    const status = error.response.status
+                    const data = error.response.data
+
+                    // Asaas specific error codes
+                    const asaasErrorCode = data.errors?.[0]?.code
+                    const asaasErrorDesc = data.errors?.[0]?.description
+
+                    console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode, desc: asaasErrorDesc })
+
+                    // Enhance error object with friendly message
+                    let friendlyMessage = 'Erro ao processar pagamento.'
+
+                    if (status === 401) {
+                        friendlyMessage = 'Erro de configuração no servidor (API Key inválida).'
+                    } else if (status === 500) {
+                        friendlyMessage = 'Erro interno no gateway de pagamento.'
+                    } else if (status === 400) {
+                        if (asaasErrorCode === 'invalid_credit_card') {
+                            friendlyMessage = 'Cartão inválido. Verifique os dados digitados.'
+                        } else if (asaasErrorCode === 'credit_card_declined') {
+                            friendlyMessage = 'Cartão recusado pelo banco emissor.'
+                        } else if (asaasErrorCode === 'insufficient_funds') {
+                            friendlyMessage = 'Saldo insuficiente no cartão.' // User requested this specific case
+                        } else if (asaasErrorDesc) {
+                            friendlyMessage = asaasErrorDesc // Fallback to Asaas message if available
+                        }
+                    }
+
+                    // Throw enhanced error
+                    const enhancedError = new Error(friendlyMessage)
+                        ; (enhancedError as any).code = asaasErrorCode || 'UNKNOWN_ERROR'
+                        ; (enhancedError as any).status = status
+                    throw enhancedError
+                }
+                throw error
+            }
+        )
     }
 
     /**
