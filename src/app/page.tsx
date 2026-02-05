@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckoutCard } from "@/components/checkout-card"
+import { Step1Finalize } from "@/components/checkout/step-1-finalize"
 import { CheckoutDelivery } from "@/components/checkout-delivery"
 import { CheckoutPayment } from "@/components/checkout-payment"
 import { CheckoutSuccess } from "@/components/checkout-success"
@@ -22,7 +22,7 @@ export default function Home() {
                         transition={{ duration: 0.3 }}
                         className="w-full flex justify-center"
                     >
-                        <CheckoutCard onNext={nextStep} />
+                        <Step1Finalize onNext={nextStep} />
                     </motion.div>
                 )
             case 2:
@@ -77,4 +77,3 @@ export default function Home() {
         </main>
     )
 }
-
