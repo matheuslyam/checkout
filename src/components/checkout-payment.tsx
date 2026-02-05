@@ -69,7 +69,8 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
     // Fetch installment options
     useEffect(() => {
         const fetchInstallments = async () => {
-            if (state.installmentOptions.length > 0) return // Already loaded
+            // Force fetch to ensure we have the latest server-side logic (21x + fees)
+            // if (state.installmentOptions.length > 0) return // Removed cache check
 
             setIsLoadingInstallments(true)
             try {
@@ -262,7 +263,7 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                         </div>
                         <div className="flex-1 text-left">
                             <span className="font-semibold text-white">Cartão de Crédito</span>
-                            <p className="text-sm text-zinc-400">Em até 12x sem juros</p>
+                            <p className="text-sm text-zinc-400">Em até 21x</p>
                         </div>
                         {state.metodoPagamento === 'cartao' && (
                             <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
