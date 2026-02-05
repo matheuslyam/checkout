@@ -38,6 +38,15 @@ export interface CheckoutState {
     pixPayload: string     // Copy-paste PIX code
     pixExpiresAt: string   // ISO date string
 
+    // Installments
+    installmentOptions: Array<{
+        installment: number
+        value: number
+        total: number
+        fee: number
+        label: string
+    }>
+
     // Shipping
     frete: number
 }
@@ -49,6 +58,7 @@ type CheckoutAction =
     | { type: 'UPDATE_DATA'; payload: { key: keyof CheckoutState; value: CheckoutState[keyof CheckoutState] } }
     | { type: 'SET_PAYMENT_RESULT'; payload: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string } }
     | { type: 'SET_PAYMENT_STATUS'; payload: 'PENDING' | 'CONFIRMED' | 'FAILED' }
+    | { type: 'SET_INSTALLMENT_OPTIONS'; payload: CheckoutState['installmentOptions'] }
     | { type: 'HYDRATE'; payload: Partial<CheckoutState> }
     | { type: 'RESET' }
 
@@ -70,6 +80,7 @@ const initialState: CheckoutState = {
     estado: '',
     metodoPagamento: null,
     parcelas: 1,
+    installmentOptions: [],
     paymentId: '',
     paymentStatus: null,
     pixQrCode: '',
@@ -123,6 +134,12 @@ function checkoutReducer(state: CheckoutState, action: CheckoutAction): Checkout
                 paymentStatus: action.payload,
             }
 
+        case 'SET_INSTALLMENT_OPTIONS':
+            return {
+                ...state,
+                installmentOptions: action.payload,
+            }
+
         case 'HYDRATE':
             return {
                 ...state,
@@ -149,6 +166,7 @@ interface CheckoutContextValue {
     goToStep: (step: 1 | 2 | 3 | 4) => void
     updateData: <K extends keyof CheckoutState>(key: K, value: CheckoutState[K]) => void
     setPaymentResult: (data: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string }) => void
+    setInstallmentOptions: (options: CheckoutState['installmentOptions']) => void
     setPaymentStatus: (status: 'PENDING' | 'CONFIRMED' | 'FAILED') => void
     validateCurrentStep: () => ValidationResult
     clearValidationErrors: () => void
@@ -280,6 +298,10 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
         dispatch({ type: 'SET_PAYMENT_STATUS', payload: status })
     }, [])
 
+    const setInstallmentOptions = useCallback((options: CheckoutState['installmentOptions']) => {
+        dispatch({ type: 'SET_INSTALLMENT_OPTIONS', payload: options })
+    }, [])
+
     const reset = useCallback(() => {
         sessionStorage.removeItem(STORAGE_KEY)
         setValidationErrors({})
@@ -296,6 +318,7 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
         updateData,
         setPaymentResult,
         setPaymentStatus,
+        setInstallmentOptions,
         validateCurrentStep,
         clearValidationErrors,
         reset,

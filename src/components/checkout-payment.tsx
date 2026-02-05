@@ -14,7 +14,9 @@ const POLLING_INTERVAL = 4000 // 4 seconds
 const POLLING_TIMEOUT = 15 * 60 * 1000 // 15 minutes
 
 export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
-    const { state, updateData, setPaymentResult, setPaymentStatus, nextStep, isHydrated } = useCheckout()
+    const { state, updateData, setPaymentResult, setPaymentStatus, setInstallmentOptions, nextStep, isHydrated } = useCheckout()
+
+    const [isLoadingInstallments, setIsLoadingInstallments] = useState(false)
 
     const [isGeneratingPix, setIsGeneratingPix] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -63,6 +65,39 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
             console.error('[Polling] Error checking payment:', err)
         }
     }, [state.paymentId, setPaymentStatus, nextStep])
+
+    // Fetch installment options
+    useEffect(() => {
+        const fetchInstallments = async () => {
+            if (state.installmentOptions.length > 0) return // Already loaded
+
+            setIsLoadingInstallments(true)
+            try {
+                const response = await fetch('/api/asaas/simulate-installments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        productId: 'ambtus-flash',
+                        uf: state.estado || 'SP'
+                    })
+                })
+                const data = await response.json()
+                if (data.installments) {
+                    setInstallmentOptions(data.installments)
+                    // Set default to 1x if not set
+                    if (state.parcelas === 1) {
+                        updateData('parcelas', 1)
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching installments:', error)
+            } finally {
+                setIsLoadingInstallments(false)
+            }
+        }
+
+        fetchInstallments()
+    }, [state.estado, setInstallmentOptions, state.installmentOptions.length])
 
     // Start polling when we have a payment ID
     useEffect(() => {
@@ -186,8 +221,8 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                         type="button"
                         onClick={() => handleSelectMethod('pix')}
                         className={`w-full p-4 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 ${state.metodoPagamento === 'pix'
-                                ? 'border-green-500 bg-green-900/20'
-                                : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
+                            ? 'border-green-500 bg-green-900/20'
+                            : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
                             }`}
                     >
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${state.metodoPagamento === 'pix' ? 'bg-green-500' : 'bg-zinc-800'
@@ -217,8 +252,8 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                         type="button"
                         onClick={() => handleSelectMethod('cartao')}
                         className={`w-full p-4 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 ${state.metodoPagamento === 'cartao'
-                                ? 'border-blue-500 bg-blue-900/20'
-                                : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
+                            ? 'border-blue-500 bg-blue-900/20'
+                            : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
                             }`}
                     >
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${state.metodoPagamento === 'cartao' ? 'bg-blue-500' : 'bg-zinc-800'
@@ -273,8 +308,8 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                     <Button
                         onClick={handleCopyPix}
                         className={`w-full h-14 rounded-xl text-lg font-semibold transition-all ${copied
-                                ? 'bg-green-600 hover:bg-green-600'
-                                : 'bg-green-600 hover:bg-green-700 shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+                            ? 'bg-green-600 hover:bg-green-600'
+                            : 'bg-green-600 hover:bg-green-700 shadow-[0_0_20px_rgba(34,197,94,0.3)]'
                             }`}
                     >
                         {copied ? (
@@ -297,12 +332,42 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                 </div>
             )}
 
-            {/* Card Form Placeholder */}
+            {/* Card Form - Installment Selector */}
             {state.metodoPagamento === 'cartao' && !state.paymentId && (
-                <div className="mb-6 p-6 border-2 border-dashed border-zinc-700 rounded-2xl">
-                    <p className="text-center text-zinc-400">
-                        🔒 Integração com cartão será implementada em breve
-                    </p>
+                <div className="mb-6 space-y-4">
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border border-white/5 space-y-4">
+                        <div className="flex items-center gap-2 text-blue-400 mb-2">
+                            <CreditCard className="w-5 h-5" />
+                            <h3 className="font-semibold text-sm">Parcelamento</h3>
+                        </div>
+
+                        {isLoadingInstallments ? (
+                            <div className="flex items-center justify-center p-4">
+                                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <label className="text-sm text-zinc-400">Em quantas vezes deseja pagar?</label>
+                                <select
+                                    className="w-full bg-zinc-800 border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer"
+                                    value={state.parcelas}
+                                    onChange={(e) => updateData('parcelas', Number(e.target.value))}
+                                >
+                                    {state.installmentOptions.map((opt) => (
+                                        <option key={opt.installment} value={opt.installment}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-4 border-2 border-dashed border-zinc-700/50 rounded-xl bg-zinc-900/30">
+                        <p className="text-center text-sm text-zinc-500">
+                            🔒 Dados do cartão serão solicitados na próxima etapa segura.
+                        </p>
+                    </div>
                 </div>
             )}
 
