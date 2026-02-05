@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckoutCard } from "@/components/checkout-card"
+import { Step1Finalize } from "@/components/checkout/step-1-finalize"
 import { CheckoutDelivery } from "@/components/checkout-delivery"
 import { useCheckout } from "@/store/CheckoutContext"
 import { AnimatePresence, motion } from "framer-motion"
@@ -9,7 +9,7 @@ export default function Home() {
     const { state, nextStep, goToStep } = useCheckout()
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-[#050505] p-4 text-white">
+        <main className="flex min-h-screen items-center justify-center bg-black p-4 text-white">
             <AnimatePresence mode="wait">
                 {state.step === 1 ? (
                     <motion.div
@@ -20,7 +20,7 @@ export default function Home() {
                         transition={{ duration: 0.3 }}
                         className="w-full flex justify-center"
                     >
-                        <CheckoutCard onNext={nextStep} />
+                        <Step1Finalize onNext={nextStep} />
                     </motion.div>
                 ) : (
                     <motion.div
