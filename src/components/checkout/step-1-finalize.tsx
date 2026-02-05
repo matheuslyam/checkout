@@ -50,14 +50,14 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
 
     return (
         <div className="w-fit bg-[#212121] rounded-[20px] p-[45px] pt-[20px] pb-[50px] mx-auto text-white flex flex-col items-center shadow-2xl">
-            {/* Progress Bar Container - Adjusted padding top to match design spacing */}
+            {/* Progress Bar Container */}
             <div className="w-[260px] h-3 bg-black rounded-full mb-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 h-full w-[25%] bg-[#1E90FF] flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-white pl-1">25%</span>
+                <div className="absolute top-0 left-0 h-full w-[25%] bg-[#1E90FF] rounded-full flex items-center justify-center">
+                    <span className="text-[7.5px] font-bold text-white pl-1">25%</span>
                 </div>
             </div>
 
-            <h1 className="text-2xl font-bold mb-8 font-inter">Finalizar Pedido</h1>
+            <h1 className="text-[23px] font-bold mb-8">Finalizar Pedido</h1>
 
             {/* Product Image */}
             <div className="bg-white rounded-[20px] p-4 mb-4 w-[260px] h-[116px] flex items-center justify-center overflow-hidden">
@@ -72,77 +72,77 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
             </div>
 
             {/* Product Name */}
-            <h2 className="font-audiowide text-[28px] text-[#1E90FF] tracking-wide uppercase mb-1 text-center w-[260px]">
+            <h2 className="font-audiowide text-[27.5px] text-[#1E90FF] tracking-wide uppercase mb-1 w-[260px] whitespace-nowrap text-center">
                 AMBTUS FLASH
             </h2>
 
             {/* Extras */}
-            <div className="flex justify-between items-center w-[260px] px-2 mb-4">
-                <span className="text-[10px] font-inter text-[#FFFFFF]">Edição Limitada</span>
+            <div className="flex justify-between items-center w-[260px] mb-4">
+                <span className="text-[11px] text-[#FFFFFF]">Edição Limitada</span>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-inter text-[#FFFFFF]">Cor:</span>
+                    <span className="text-[11px] text-[#FFFFFF]">Cor:</span>
                     <div className="w-5 h-5 bg-black rounded-[5px] border-[1px] !border-[#383838]"></div>
                 </div>
             </div>
 
             {/* Price */}
-            <div className="text-center mb-10 w-[260px]">
-                <div className="text-[40px] font-bold leading-none mb-1">R$ 12.490,00</div>
-                <div className="text-[#1E90FF] font-bold text-base">Até 12x de R$ 1.040,83</div>
+            <div className="mb-10 w-[260px] text-center">
+                <div className="text-[41px] font-bold leading-none mb-1">R$ 12.490,00</div>
+                <div className="text-[#1E90FF] font-bold text-[15px]">Até 12x de R$ 1.040,83</div>
             </div>
 
             {/* Personal Data Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="w-[260px] flex flex-col gap-4">
-                <h3 className="text-base font-bold text-center mb-2">Dados pessoais:</h3>
+                <h3 className="text-[15px] font-bold text-center mb-2">Dados pessoais:</h3>
 
                 <div className="flex flex-col gap-1">
-                    <label className="text-sm font-regular">Nome:</label>
+                    <label className="text-[13px] font-regular">Nome:</label>
                     <input
                         {...register("name")}
                         placeholder="Ex: Pedro da Silva"
                         className={cn(
-                            "w-full h-[53px] bg-[#191919] border-[1px] !border-[#383838] rounded-[20px] px-6 text-[#FFFFFF] placeholder:text-[#383838] focus:outline-none focus:border-[#1E90FF] focus:border-[1px]",
-                            errors.name && "border-[#FF1E1E] border-[1px]"
+                            "w-full h-[53px] bg-[#191919] border-[1px] rounded-[20px] px-6 text-[#FFFFFF] text-[15px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                            errors.name ? "!border-[#FF1E1E]" : "!border-[#383838]"
                         )}
                     />
                     {errors.name && (
-                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.name.message}</span>
+                        <span className="text-[#FF1E1E] text-[7px] text-right px-2">{errors.name.message}</span>
                     )}
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <label className="text-sm font-regular">G-mail:</label>
+                    <label className="text-[13px] font-regular">G-mail:</label>
                     <input
                         {...register("email")}
                         placeholder="Ex: seugmail@gmail.com"
                         className={cn(
-                            "w-full h-[53px] bg-[#191919] border-[1px] !border-[#383838] rounded-[20px] px-6 text-[#FFFFFF] placeholder:text-[#383838] focus:outline-none focus:border-[#1E90FF] focus:border-[1px]",
-                            errors.email && "border-[#FF1E1E] border-[1px]"
+                            "w-full h-[53px] bg-[#191919] border-[1px] rounded-[20px] px-6 text-[#FFFFFF] text-[15px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                            errors.email ? "!border-[#FF1E1E]" : "!border-[#383838]"
                         )}
                     />
                     {errors.email && (
-                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.email.message}</span>
+                        <span className="text-[#FF1E1E] text-[7px] text-right px-2">{errors.email.message}</span>
                     )}
                 </div>
 
                 <div className="flex flex-col gap-1 mb-6">
-                    <label className="text-sm font-regular">Telefone:</label>
+                    <label className="text-[13px] font-regular">Telefone:</label>
                     <input
                         {...register("phone")}
                         placeholder="Ex: (99)98765-4321"
                         className={cn(
-                            "w-full h-[53px] bg-[#191919] border-[1px] !border-[#383838] rounded-[20px] px-6 text-[#FFFFFF] placeholder:text-[#383838] focus:outline-none focus:border-[#1E90FF] focus:border-[1px]",
-                            errors.phone && "border-[#FF1E1E] border-[1px]"
+                            "w-full h-[53px] bg-[#191919] border-[1px] rounded-[20px] px-6 text-[#FFFFFF] text-[15px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                            errors.phone ? "!border-[#FF1E1E]" : "!border-[#383838]"
                         )}
                     />
                     {errors.phone && (
-                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.phone.message}</span>
+                        <span className="text-[#FF1E1E] text-[7px] text-right px-2">{errors.phone.message}</span>
                     )}
                 </div>
 
                 <Button
                     type="submit"
-                    className="w-full h-[53px] rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-base hover:opacity-90 transition-opacity border-none"
+                    className="w-full h-[53px] rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-[15px] hover:opacity-90 transition-opacity border-none"
                 >
                     Continuar para Entrega
                 </Button>
