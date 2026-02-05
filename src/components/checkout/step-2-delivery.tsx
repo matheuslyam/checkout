@@ -136,8 +136,8 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
                 </div>
             </div>
 
-            <h1 className="text-[23px] font-bold mb-2">Entrega</h1>
-            <h2 className="text-[13px] font-regular text-[#9E9E9E] -mt-6 mb-8">Onde sua bike vai ser entregue?</h2>
+            <h1 className="text-[23px] font-bold mb-[4px]">Entrega</h1>
+            <h2 className="text-[13px] font-regular text-[#9E9E9E] mb-8">Onde sua bike vai ser entregue?</h2>
 
             {/* Product Summary Card */}
             <div className="flex gap-4 items-center w-[260px] mb-8">
