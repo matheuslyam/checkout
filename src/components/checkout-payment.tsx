@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useCheckout } from "@/store/CheckoutContext"
 import { ArrowLeft, Loader2 } from "lucide-react"
 
@@ -54,11 +55,34 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
 
             {/* Payment Method Selection */}
             {!state.paymentId && (
-                <PaymentSelector
-                    method={state.metodoPagamento}
-                    onSelect={handleSelectMethod}
-                    frete={state.frete}
-                />
+                <div className="space-y-6">
+                    <PaymentSelector
+                        method={state.metodoPagamento}
+                        onSelect={handleSelectMethod}
+                        frete={state.frete}
+                    />
+
+                    {/* CPF Input - Required for all payment methods */}
+                    <div className="space-y-1.5">
+                        <label className="ml-1 text-sm text-zinc-300">CPF do Pagador</label>
+                        <Input
+                            placeholder="000.000.000-00"
+                            value={state.cpf}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '')
+                                updateData('cpf', val)
+                            }}
+                            maxLength={11}
+                            className={`h-12 border-[0.5px] bg-zinc-900/50 text-white placeholder:text-zinc-600 focus-visible:ring-[#3B82F6] rounded-xl ${state.cpf.length > 0 && state.cpf.length < 11
+                                ? 'border-red-500'
+                                : 'border-white/10'
+                                }`}
+                        />
+                        {state.cpf.length > 0 && state.cpf.length < 11 && (
+                            <p className="ml-1 text-xs text-red-400">CPF deve ter 11 números</p>
+                        )}
+                    </div>
+                </div>
             )}
 
             {/* PIX Copy Code Section (No QR Code - Mobile First) */}
@@ -100,8 +124,8 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                 {state.metodoPagamento === 'pix' && !state.paymentId && (
                     <Button
                         onClick={handleGeneratePix}
-                        disabled={isGeneratingPix}
-                        className="flex-1 h-14 rounded-2xl bg-green-600 text-lg font-semibold hover:bg-green-700 shadow-[0_0_20px_rgba(34,197,94,0.3)] disabled:opacity-50"
+                        disabled={isGeneratingPix || state.cpf.length !== 11}
+                        className="flex-1 h-14 rounded-2xl bg-green-600 text-lg font-semibold hover:bg-green-700 shadow-[0_0_20px_rgba(34,197,94,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isGeneratingPix ? (
                             <span className="flex items-center gap-2">
@@ -111,6 +135,16 @@ export function CheckoutPayment({ onBack }: CheckoutPaymentProps) {
                         ) : (
                             'Gerar Código PIX'
                         )}
+                    </Button>
+                )}
+
+                {state.metodoPagamento === 'cartao' && !state.paymentId && (
+                    <Button
+                        onClick={() => alert('Fluxo de cartão em desenvolvimento (Inputs removidos no refactor?)')}
+                        disabled={state.cpf.length !== 11}
+                        className="flex-1 h-14 rounded-2xl bg-[#1A7DFD] text-lg font-semibold hover:bg-[#1565CC] shadow-[0_0_20px_rgba(26,125,253,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Continuar com Cartão
                     </Button>
                 )}
             </div>
