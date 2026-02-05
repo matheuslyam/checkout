@@ -1,7 +1,27 @@
+"use client"
+
+import Image from "next/image"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import { useCheckout } from "@/store/CheckoutContext"
 import { useEffect } from "react"
 
-// ... imports
+// Schema definition
+const formSchema = z.object({
+    name: z.string().min(2, { message: "O nome é obrigatório" }),
+    email: z.string().email({ message: "Digite uma informação válida." }),
+    phone: z.string().min(10, { message: "Digite uma informação válida." }),
+})
+
+type FormData = z.infer<typeof formSchema>
+
+interface Step1FinalizeProps {
+    onNext: () => void
+}
 
 export function Step1Finalize({ onNext }: Step1FinalizeProps) {
     const { state, updateData } = useCheckout()
@@ -16,7 +36,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
         defaultValues: {
             name: state.nome,
             email: state.email,
-            phone: state.telefone || '', // Assuming phone exists in state or map to correct field
+            phone: state.telefone || '',
         }
     })
 
