@@ -26,7 +26,7 @@ export function PixArea({ pixPayload, isPolling }: PixAreaProps) {
     if (!pixPayload) return null
 
     return (
-        <div className="mb-6 p-6 bg-zinc-900/50 rounded-2xl border border-white/5">
+        <div className="mb-6 p-6 bg-[#1A1A1A] rounded-2xl border border-white/5">
             {/* PIX Instructions */}
             <div className="text-center mb-6">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/20 flex items-center justify-center">

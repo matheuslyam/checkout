@@ -15,10 +15,10 @@ export function PaymentSelector({ method, onSelect, frete }: PaymentSelectorProp
                 onClick={() => onSelect('pix')}
                 className={`w-full p-4 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 ${method === 'pix'
                     ? 'border-green-500 bg-green-900/20'
-                    : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
+                    : 'border-white/5 bg-[#1A1A1A] hover:border-white/10'
                     }`}
             >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${method === 'pix' ? 'bg-green-500' : 'bg-zinc-800'
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${method === 'pix' ? 'bg-green-500' : 'bg-[#222]'
                     }`}>
                     <Smartphone className="w-6 h-6 text-white" />
                 </div>
@@ -46,10 +46,10 @@ export function PaymentSelector({ method, onSelect, frete }: PaymentSelectorProp
                 onClick={() => onSelect('cartao')}
                 className={`w-full p-4 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 ${method === 'cartao'
                     ? 'border-blue-500 bg-blue-900/20'
-                    : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
+                    : 'border-white/5 bg-[#1A1A1A] hover:border-white/10'
                     }`}
             >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${method === 'cartao' ? 'bg-blue-500' : 'bg-zinc-800'
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${method === 'cartao' ? 'bg-blue-500' : 'bg-[#222]'
                     }`}>
                     <CreditCard className="w-6 h-6 text-white" />
                 </div>
