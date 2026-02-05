@@ -1,7 +1,7 @@
 "use client"
 
 import { Step1Finalize } from "@/components/checkout/step-1-finalize"
-import { CheckoutDelivery } from "@/components/checkout-delivery"
+import { Step2Delivery } from "@/components/checkout/step-2-delivery"
 import { CheckoutPayment } from "@/components/checkout-payment"
 import { CheckoutSuccess } from "@/components/checkout-success"
 import { useCheckout } from "@/store/CheckoutContext"
@@ -35,7 +35,7 @@ export default function Home() {
                         transition={{ duration: 0.3 }}
                         className="w-full flex justify-center"
                     >
-                        <CheckoutDelivery onNext={nextStep} />
+                        <Step2Delivery onNext={nextStep} onBack={prevStep} />
                     </motion.div>
                 )
             case 3:
