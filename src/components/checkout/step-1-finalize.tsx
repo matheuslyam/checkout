@@ -30,7 +30,8 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
         register,
         handleSubmit,
         formState: { errors },
-        setValue
+        setValue,
+        reset
     } = useForm<FormData>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -40,12 +41,30 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
         }
     })
 
+    // Update form when context state hydrates (e.g. from session storage)
+    useEffect(() => {
+        if (state.nome || state.email || state.telefone) {
+            reset({
+                name: state.nome,
+                email: state.email,
+                phone: state.telefone || '',
+            })
+        }
+    }, [state.nome, state.email, state.telefone, reset])
+
+    // Sync state updates
     // Sync state updates
     const onSubmit = (data: FormData) => {
+        // Data is already synced via onChange handlers
+        // But to be safe (e.g. autofill without event), we can update again
         updateData('nome', data.name)
         updateData('email', data.email)
         updateData('telefone', data.phone)
-        onNext()
+
+        // Wait a microtask to ensure state is propagated before nextStep validation check
+        setTimeout(() => {
+            onNext()
+        }, 0)
     }
 
     return (
@@ -98,7 +117,9 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                 <div className="flex flex-col gap-1">
                     <label className="text-sm font-regular">Nome:</label>
                     <input
-                        {...register("name")}
+                        {...register("name", {
+                            onChange: (e) => updateData('nome', e.target.value)
+                        })}
                         placeholder="Ex: Pedro da Silva"
                         className={cn(
                             "w-full h-[53px] bg-[#191919] border-[1px] !border-[#383838] rounded-[20px] px-6 text-[#FFFFFF] placeholder:text-[#383838] focus:outline-none focus:border-[#1E90FF] focus:border-[1px]",
@@ -113,7 +134,9 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                 <div className="flex flex-col gap-1">
                     <label className="text-sm font-regular">G-mail:</label>
                     <input
-                        {...register("email")}
+                        {...register("email", {
+                            onChange: (e) => updateData('email', e.target.value)
+                        })}
                         placeholder="Ex: seugmail@gmail.com"
                         className={cn(
                             "w-full h-[53px] bg-[#191919] border-[1px] !border-[#383838] rounded-[20px] px-6 text-[#FFFFFF] placeholder:text-[#383838] focus:outline-none focus:border-[#1E90FF] focus:border-[1px]",
@@ -128,7 +151,9 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                 <div className="flex flex-col gap-1 mb-6">
                     <label className="text-sm font-regular">Telefone:</label>
                     <input
-                        {...register("phone")}
+                        {...register("phone", {
+                            onChange: (e) => updateData('telefone', e.target.value)
+                        })}
                         placeholder="Ex: (99)98765-4321"
                         className={cn(
                             "w-full h-[53px] bg-[#191919] border-[1px] !border-[#383838] rounded-[20px] px-6 text-[#FFFFFF] placeholder:text-[#383838] focus:outline-none focus:border-[#1E90FF] focus:border-[1px]",

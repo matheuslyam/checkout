@@ -7,9 +7,7 @@ export const Step1Schema = z.object({
     email: z.string()
         .min(1, 'E-mail é obrigatório')
         .email('E-mail inválido'),
-    cpf: z.string()
-        .min(1, 'CPF é obrigatório')
-        .regex(/^\d{11}$/, 'CPF deve ter 11 dígitos'),
+    cpf: z.string().optional(), // CPF moved to payment step
     nome: z.string()
         .min(1, 'Nome é obrigatório')
         .min(3, 'Nome deve ter pelo menos 3 caracteres'),

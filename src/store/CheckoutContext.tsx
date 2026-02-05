@@ -178,7 +178,7 @@ const CheckoutContext = createContext<CheckoutContextValue | null>(null)
 // ============================================
 // Storage Key
 // ============================================
-const STORAGE_KEY = 'checkout_state'
+const STORAGE_KEY = 'checkout_state_v2'
 
 // ============================================
 // Provider
@@ -194,14 +194,19 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
 
     // Hydrate state from sessionStorage on mount (client-side only)
     useEffect(() => {
+        if (typeof window === 'undefined') return
+
         try {
             const stored = sessionStorage.getItem(STORAGE_KEY)
             if (stored) {
                 const parsed = JSON.parse(stored) as Partial<CheckoutState>
                 dispatch({ type: 'HYDRATE', payload: parsed })
+                console.log('✅ [Checkout] State restored from session storage')
             }
         } catch (error) {
-            console.error('Failed to hydrate checkout state:', error)
+            console.error('❌ [Checkout] Failed to hydrate state:', error)
+            // If corrupt, clear it to avoid loop
+            sessionStorage.removeItem(STORAGE_KEY)
         } finally {
             // Always mark as hydrated after attempting to load
             setIsHydrated(true)
@@ -214,9 +219,11 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
         if (!isHydrated) return
 
         try {
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+            const data = JSON.stringify(state)
+            sessionStorage.setItem(STORAGE_KEY, data)
+            // console.log('💾 [Checkout] State saved') // debug only
         } catch (error) {
-            console.error('Failed to persist checkout state:', error)
+            console.error('❌ [Checkout] Failed to persist state:', error)
         }
     }, [state, isHydrated])
 
@@ -226,7 +233,7 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
             case 1:
                 return validateStep1({
                     email: state.email,
-                    cpf: state.cpf.replace(/\D/g, ''),
+                    // cpf: state.cpf.replace(/\D/g, ''), // CPF moved to payment
                     nome: state.nome,
                     telefone: state.telefone,
                 })
