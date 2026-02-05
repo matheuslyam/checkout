@@ -70,9 +70,9 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
     return (
         <div className="w-fit bg-[#212121] rounded-[20px] p-[45px] pt-[20px] pb-[50px] mx-auto text-white flex flex-col items-center shadow-2xl">
             {/* Progress Bar Container */}
-            <div className="w-[260px] h-3 bg-black rounded-full mb-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 h-full w-[25%] bg-[#1E90FF] rounded-full flex items-center justify-center">
-                    <span className="text-[7.5px] font-bold text-white pl-1">25%</span>
+            <div className="w-[260px] h-[18px] bg-black rounded-full mb-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-full w-[25%] bg-[#1E90FF] rounded-full flex items-center justify-end pr-2">
+                    <span className="text-[10px] font-bold text-white">25%</span>
                 </div>
             </div>
 
@@ -127,7 +127,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                         )}
                     />
                     {errors.name && (
-                        <span className="text-[#FF1E1E] text-[7px] text-right px-2">{errors.name.message}</span>
+                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.name.message}</span>
                     )}
                 </div>
 
@@ -144,7 +144,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                         )}
                     />
                     {errors.email && (
-                        <span className="text-[#FF1E1E] text-[7px] text-right px-2">{errors.email.message}</span>
+                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.email.message}</span>
                     )}
                 </div>
 
@@ -161,7 +161,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                         )}
                     />
                     {errors.phone && (
-                        <span className="text-[#FF1E1E] text-[7px] text-right px-2">{errors.phone.message}</span>
+                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.phone.message}</span>
                     )}
                 </div>
 
