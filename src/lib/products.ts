@@ -20,7 +20,7 @@ export const PRODUCTS: Record<string, Product> = {
     'ambtus-flash': {
         id: 'ambtus-flash',
         name: 'AMBTUS FLASH',
-        price: 12490,
+        price: 1264000,
         description: 'Edição Limitada',
         maxInstallments: 12,
     },
