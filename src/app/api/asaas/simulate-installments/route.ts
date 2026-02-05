@@ -2,70 +2,83 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getProductById } from '@/lib/products'
 import { calculateShipping } from '@/lib/shipping'
 
-// Asaas installment fees (typical credit card rates)
-// These should match Asaas' actual rates
-const INSTALLMENT_FEES: Record<number, number> = {
-    1: 0,       // No fee for 1x
-    2: 0,       // 2x sem juros
-    3: 0,       // 3x sem juros
-    4: 0,       // 4x sem juros
-    5: 0,       // 5x sem juros
-    6: 0,       // 6x sem juros
-    7: 0,       // 7x sem juros (promotional)
-    8: 0,       // 8x sem juros (promotional)
-    9: 0,       // 9x sem juros (promotional)
-    10: 0,      // 10x sem juros (promotional)
-    11: 0,      // 11x sem juros (promotional)
-    12: 0,      // 12x sem juros (promotional)
-}
+// ==========================================
+// CONFIGURATION
+// ==========================================
+const MAX_INSTALLMENTS = 21
 
-const MAX_INSTALLMENTS = 12
-const MIN_INSTALLMENT_VALUE = 100 // R$ 1,00 minimum per installment (in cents)
+// Fixed fee per transaction (added to base value before applying percentage)
+const FIXED_FEE = 0.49
+
+const MIN_INSTALLMENT_VALUE = 500 // R$ 5,00 minimum per installment
 
 interface InstallmentOption {
     installment: number
     value: number       // Value per installment (in cents)
     total: number       // Total to pay (in cents)
-    fee: number         // Fee percentage
+    fee: number         // Fee percentage applied
     label: string       // Display label
 }
 
 /**
- * Calculate installment options for a given total
+ * Get fee percentage based on number of installments
+ * Based on Asaas "Cobranças online" table
  */
-function calculateInstallments(totalCents: number): InstallmentOption[] {
+function getFeePercentage(installments: number): number {
+    if (installments === 1) return 2.99
+    if (installments >= 2 && installments <= 6) return 3.49
+    if (installments >= 7 && installments <= 12) return 3.99
+    if (installments >= 13 && installments <= 21) return 4.29
+    return 0
+}
+
+/**
+ * Calculate installment options using Reverse Calculation (Net Amount Preservation)
+ * Formula: TotalToCharge = (BaseValue + FixedFee) / (1 - FeePercentage)
+ */
+function calculateInstallments(baseValueCents: number): InstallmentOption[] {
     const options: InstallmentOption[] = []
 
+    // Convert base value to BRL (float) for calculation
+    const baseValue = baseValueCents / 100
+
     for (let i = 1; i <= MAX_INSTALLMENTS; i++) {
-        const feePercent = INSTALLMENT_FEES[i] || 0
-        const totalWithFee = Math.round(totalCents * (1 + feePercent / 100))
-        const valuePerInstallment = Math.round(totalWithFee / i)
+        const feePercent = getFeePercentage(i)
+        const feeDecimal = feePercent / 100
+
+        // Reverse calculation to ensure merchant receives the full base value
+        // We add the fixed fee (0.49) to the base, then divide by (1 - rate)
+        const totalToCharge = (baseValue + FIXED_FEE) / (1 - feeDecimal)
+
+        // Convert back to cents and round
+        const totalWithFeeCents = Math.round(totalToCharge * 100)
+
+        // Calculate per-installment value
+        const valuePerInstallmentCents = Math.round(totalWithFeeCents / i)
 
         // Skip if installment value is too low
-        if (valuePerInstallment < MIN_INSTALLMENT_VALUE) continue
+        if (valuePerInstallmentCents < MIN_INSTALLMENT_VALUE) continue
 
         // Format values for display
-        const valueFormatted = (valuePerInstallment / 100).toLocaleString('pt-BR', {
+        const valueFormatted = (valuePerInstallmentCents / 100).toLocaleString('pt-BR', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         })
 
-        const totalFormatted = (totalWithFee / 100).toLocaleString('pt-BR', {
+        const totalFormatted = (totalWithFeeCents / 100).toLocaleString('pt-BR', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         })
 
-        let label = `${i}x de R$ ${valueFormatted}`
-        if (feePercent === 0) {
-            label += ' sem juros'
-        } else {
-            label += ` (Total: R$ ${totalFormatted})`
-        }
+        // Label formulation
+        // For 1x, we usually show "à vista" or similar, but keeping consistent format is fine
+        // Since we are passing interest to customer, we always show total
+        const label = `${i}x de R$ ${valueFormatted} (Total: R$ ${totalFormatted})`
 
         options.push({
             installment: i,
-            value: valuePerInstallment,
-            total: totalWithFee,
+            value: valuePerInstallmentCents,
+            total: totalWithFeeCents,
             fee: feePercent,
             label,
         })
@@ -75,54 +88,27 @@ function calculateInstallments(totalCents: number): InstallmentOption[] {
 }
 
 export async function GET(request: NextRequest) {
-    try {
-        const searchParams = request.nextUrl.searchParams
-        const productId = searchParams.get('productId') || 'ambtus-flash'
-        const uf = searchParams.get('uf') || 'SP'
-
-        // Get product price from server catalog
-        const product = getProductById(productId)
-        if (!product) {
-            return NextResponse.json(
-                { error: 'Product not found' },
-                { status: 404 }
-            )
-        }
-
-        // Calculate shipping
-        const shipping = calculateShipping(uf)
-
-        // Calculate total (product + shipping) in cents
-        const totalCents = product.price + shipping
-
-        // Generate installment options
-        const installments = calculateInstallments(totalCents)
-
-        return NextResponse.json({
-            productId,
-            productPrice: product.price,
-            shipping: shipping,
-            total: totalCents,
-            totalFormatted: (totalCents / 100).toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-            }),
-            installments,
-        })
-
-    } catch (error) {
-        console.error('[Installments] Error calculating:', error)
-        return NextResponse.json(
-            { error: 'Failed to calculate installments' },
-            { status: 500 }
-        )
-    }
+    return handleRequest(request)
 }
 
 export async function POST(request: NextRequest) {
+    return handleRequest(request)
+}
+
+async function handleRequest(request: NextRequest) {
     try {
-        const body = await request.json()
-        const { productId = 'ambtus-flash', uf = 'SP' } = body
+        let productId = 'ambtus-flash'
+        let uf = 'SP'
+
+        if (request.method === 'GET') {
+            const searchParams = request.nextUrl.searchParams
+            productId = searchParams.get('productId') || productId
+            uf = searchParams.get('uf') || uf
+        } else {
+            const body = await request.json()
+            productId = body.productId || productId
+            uf = body.uf || uf
+        }
 
         // Get product price from server catalog
         const product = getProductById(productId)
@@ -136,21 +122,17 @@ export async function POST(request: NextRequest) {
         // Calculate shipping
         const shipping = calculateShipping(uf)
 
-        // Calculate total (product + shipping) in cents
-        const totalCents = product.price + shipping
+        // Base total (Product + Shipping) - This is what the merchant wants to receive NET
+        const baseTotalCents = product.price + shipping
 
-        // Generate installment options
-        const installments = calculateInstallments(totalCents)
+        // Generate installment options with reverse calculation
+        const installments = calculateInstallments(baseTotalCents)
 
         return NextResponse.json({
             productId,
             productPrice: product.price,
             shipping: shipping,
-            total: totalCents,
-            totalFormatted: (totalCents / 100).toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-            }),
+            baseTotal: baseTotalCents, // This is the net amount
             installments,
         })
 
