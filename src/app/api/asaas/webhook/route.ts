@@ -57,6 +57,22 @@ type WebhookPayload = z.infer<typeof WebhookPayloadSchema>
 // ============================================
 export async function POST(request: NextRequest) {
     try {
+        // ============================================
+        // 🔒 Security Check (Zero Trust)
+        // ============================================
+        const requestToken = request.headers.get('asaas-access-token')
+        const serverToken = process.env.ASAAS_WEBHOOK_TOKEN
+
+        if (!serverToken) {
+            console.error('❌ [Asaas Webhook] Critical: ASAAS_WEBHOOK_TOKEN not set in environment variables.')
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+        }
+
+        if (requestToken !== serverToken) {
+            console.warn(`⛔ [Asaas Webhook] Unauthorized access attempt. Token: ${requestToken || 'N/A'}`)
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         // Parse request body
         const body = await request.json()
 
