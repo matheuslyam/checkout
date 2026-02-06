@@ -19,10 +19,11 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
     // const [isSimulatingPix, setIsSimulatingPix] = useState(false) // Removed local simulation state
     const [timeLeft, setTimeLeft] = useState(600) // Default 10 min
     const [isInstallmentsOpen, setIsInstallmentsOpen] = useState(false)
-    const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '' })
+    const [cardData, setCardData] = useState({ number: '', name: '', cpfCnpj: '', expiry: '', cvv: '' })
 
     const isCardValid = cardData.number.replace(/\D/g, '').length >= 13 &&
         cardData.name.length > 3 &&
+        cardData.cpfCnpj.replace(/\D/g, '').length >= 11 &&
         cardData.expiry.length >= 5 &&
         cardData.cvv.length >= 3
 
@@ -178,6 +179,15 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                                         className="w-full h-[40px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]"
                                         value={cardData.name}
                                         onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-regular text-white">CPF ou CNPJ</label>
+                                    <input
+                                        placeholder="Ex: 000.000.000-00"
+                                        className="w-full h-[40px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]"
+                                        value={cardData.cpfCnpj}
+                                        onChange={(e) => setCardData({ ...cardData, cpfCnpj: e.target.value })}
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1">
