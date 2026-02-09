@@ -1,7 +1,14 @@
-'use client'
-
 import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { validateStep1, validateStep2, validateStep3, type ValidationErrors, type ValidationResult } from '@/lib/validation'
+
+// ... (existing imports/types remain, but we only replace up to the effect)
+
+// ============================================
+// Types
+// ============================================
+// ... (omitting lines to keep replacement concise is hard with replacement tool, I will just target the specific blocks)
+
 
 // ============================================
 // Types
@@ -208,26 +215,55 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
     const [isHydrated, setIsHydrated] = useState(false)
     const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
 
+    const searchParams = useSearchParams()
+
     // Hydrate state from sessionStorage on mount (client-side only)
     useEffect(() => {
         if (typeof window === 'undefined') return
 
+        const urlBike = searchParams.get('bike')
+        const urlColor = searchParams.get('cor')
+
         try {
             const stored = sessionStorage.getItem(STORAGE_KEY)
+
             if (stored) {
                 const parsed = JSON.parse(stored) as Partial<CheckoutState>
-                dispatch({ type: 'HYDRATE', payload: parsed })
-                console.log('✅ [Checkout] State restored from session storage')
+
+                // Security Check: If URL has new product/color, PURGE session
+                // This prevents PII from previous sessions leaking into a new sale
+                const isDifferentProduct =
+                    (urlBike && urlBike !== parsed.productId) ||
+                    (urlColor && urlColor !== parsed.productColor)
+
+                if (isDifferentProduct) {
+                    console.log('🔄 [Checkout] New product detected in URL. Purging old session for security.')
+                    sessionStorage.removeItem(STORAGE_KEY)
+
+                    // Initialize with new data from URL
+                    if (urlBike) dispatch({ type: 'UPDATE_DATA', payload: { key: 'productId', value: urlBike } })
+                    if (urlColor) dispatch({ type: 'UPDATE_DATA', payload: { key: 'productColor', value: urlColor } })
+
+                    // Do NOT hydrate the old state (it's gone)
+                } else {
+                    // Same product or no URL params -> Safe to restore
+                    dispatch({ type: 'HYDRATE', payload: parsed })
+                    console.log('✅ [Checkout] State restored from session storage')
+                }
+            } else {
+                // No session stored -> Just use URL params if any
+                if (urlBike) dispatch({ type: 'UPDATE_DATA', payload: { key: 'productId', value: urlBike } })
+                if (urlColor) dispatch({ type: 'UPDATE_DATA', payload: { key: 'productColor', value: urlColor } })
             }
         } catch (error) {
             console.error('❌ [Checkout] Failed to hydrate state:', error)
-            // If corrupt, clear it to avoid loop
+            // If corrupt, clear it
             sessionStorage.removeItem(STORAGE_KEY)
         } finally {
             // Always mark as hydrated after attempting to load
             setIsHydrated(true)
         }
-    }, [])
+    }, [searchParams])
 
     // Persist state to sessionStorage on changes (only after hydration)
     useEffect(() => {

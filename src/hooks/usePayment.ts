@@ -110,28 +110,32 @@ export function usePayment() {
         setError(null)
 
         try {
+            const payload = {
+                productId: 'ambtus-flash',
+                customer: {
+                    name: state.nome,
+                    email: state.email,
+                    cpfCnpj: state.cpf.replace(/\D/g, ''),
+                    phone: state.telefone?.replace(/\D/g, ''),
+                },
+                address: {
+                    cep: state.cep.replace(/\D/g, ''),
+                    endereco: state.endereco,
+                    numero: state.numero,
+                    complemento: state.complemento,
+                    bairro: state.bairro,
+                    cidade: state.cidade,
+                    uf: state.estado,
+                },
+                paymentMethod: 'PIX',
+            }
+
+            console.log("DEBUG PAYLOAD:", payload)
+
             const response = await fetch('/api/asaas/pay', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    productId: 'ambtus-flash',
-                    customer: {
-                        name: state.nome,
-                        email: state.email,
-                        cpfCnpj: state.cpf.replace(/\D/g, ''),
-                        phone: state.telefone?.replace(/\D/g, ''),
-                    },
-                    address: {
-                        cep: state.cep.replace(/\D/g, ''),
-                        endereco: state.endereco,
-                        numero: state.numero,
-                        complemento: state.complemento,
-                        bairro: state.bairro,
-                        cidade: state.cidade,
-                        uf: state.estado,
-                    },
-                    paymentMethod: 'PIX',
-                }),
+                body: JSON.stringify(payload),
             })
 
             const data = await response.json()
