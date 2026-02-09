@@ -112,8 +112,12 @@ export function usePayment() {
         setError(null)
 
         try {
+            if (!state.productId) {
+                throw new Error('Produto não identificado. Por favor, retorne e selecione um produto.')
+            }
+
             const payload = {
-                productId: 'ambtus-flash',
+                productId: state.productId,
                 customer: {
                     name: state.nome,
                     email: state.email,
@@ -196,7 +200,7 @@ export function usePayment() {
             const cleanCpf = cardData.cpf.replace(/\D/g, '')
 
             const payload = {
-                productId: 'ambtus-flash',
+                productId: state.productId,
                 installments: state.parcelas,
                 customer: {
                     name: state.nome,

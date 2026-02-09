@@ -141,6 +141,10 @@ export async function POST(request: NextRequest) {
         // Parse and validate request body
         const body = await request.json()
         debugPayload = body // Store for error logging
+
+        // STRICT LOGGING: Verify exact Product ID received
+        console.log("FINAL PRODUCT ID TO ASAAS:", body.productId)
+
         // Detect and handle Test Card Bypass BEFORE strict schema validation
         // Detect and handle Test Card Bypass BEFORE strict schema validation
         if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true') {
