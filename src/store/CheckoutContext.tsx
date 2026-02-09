@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, Suspense, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { validateStep1, validateStep2, validateStep3, type ValidationErrors, type ValidationResult } from '@/lib/validation'
 
@@ -206,20 +206,17 @@ const CheckoutContext = createContext<CheckoutContextValue | null>(null)
 const STORAGE_KEY = 'checkout_state_v2'
 
 // ============================================
-// Provider
+// URL Handler Component (Suspense Wrap)
 // ============================================
-interface CheckoutProviderProps {
-    children: ReactNode
-}
-
-export function CheckoutProvider({ children }: CheckoutProviderProps) {
-    const [state, dispatch] = useReducer(checkoutReducer, initialState)
-    const [isHydrated, setIsHydrated] = useState(false)
-    const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
-
+function CheckoutUrlHandler({
+    dispatch,
+    setIsHydrated
+}: {
+    dispatch: React.Dispatch<CheckoutAction>,
+    setIsHydrated: (value: boolean) => void
+}) {
     const searchParams = useSearchParams()
 
-    // Hydrate state from sessionStorage on mount (client-side only)
     useEffect(() => {
         if (typeof window === 'undefined') return
 
@@ -233,7 +230,6 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
                 const parsed = JSON.parse(stored) as Partial<CheckoutState>
 
                 // Security Check: If URL has new product/color, PURGE session
-                // This prevents PII from previous sessions leaking into a new sale
                 const isDifferentProduct =
                     (urlBike && urlBike !== parsed.productId) ||
                     (urlColor && urlColor !== parsed.productColor)
@@ -265,7 +261,24 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
             // Always mark as hydrated after attempting to load
             setIsHydrated(true)
         }
-    }, [searchParams])
+    }, [searchParams, dispatch, setIsHydrated])
+
+    return null
+}
+
+// ============================================
+// Provider
+// ============================================
+interface CheckoutProviderProps {
+    children: ReactNode
+}
+
+export function CheckoutProvider({ children }: CheckoutProviderProps) {
+    const [state, dispatch] = useReducer(checkoutReducer, initialState)
+    const [isHydrated, setIsHydrated] = useState(false)
+    const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
+
+    // Hydration logic moved to CheckoutUrlHandler for Suspense support
 
     // Persist state to sessionStorage on changes (only after hydration)
     useEffect(() => {
@@ -387,6 +400,9 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
 
     return (
         <CheckoutContext.Provider value={value}>
+            <Suspense fallback={null}>
+                <CheckoutUrlHandler dispatch={dispatch} setIsHydrated={setIsHydrated} />
+            </Suspense>
             {children}
         </CheckoutContext.Provider>
     )
