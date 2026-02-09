@@ -201,7 +201,16 @@ export class AsaasService {
     }
 
     /**
-     * Create a new customer or return existing one
+     * Update an existing customer
+     */
+    async updateCustomer(id: string, input: Partial<CustomerInput>): Promise<AsaasCustomer> {
+        // We only send fields that are present in input
+        const response = await this.client.post(`/customers/${id}`, input)
+        return response.data as AsaasCustomer
+    }
+
+    /**
+     * Create a new customer or return existing one (updating it)
      */
     async createCustomer(input: CustomerInput): Promise<AsaasCustomer> {
         // Validate input
@@ -209,8 +218,17 @@ export class AsaasService {
 
         // Check if customer already exists
         const existingCustomer = await this.findCustomerByCpfCnpj(validated.cpfCnpj)
+
         if (existingCustomer) {
-            return existingCustomer
+            // 🔄 SYNC DATA: Update the existing customer with new data (email, phone, etc)
+            // This ensures we don't send notifications to old emails
+            try {
+                console.log(`[Asaas] Updating existing customer ${existingCustomer.id} with new data...`)
+                return await this.updateCustomer(existingCustomer.id, validated)
+            } catch (error) {
+                console.error('[Asaas] Failed to update customer data, returning existing record:', error)
+                return existingCustomer
+            }
         }
 
         // Create new customer
