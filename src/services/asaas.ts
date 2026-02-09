@@ -204,8 +204,9 @@ export class AsaasService {
      * Update an existing customer
      */
     async updateCustomer(id: string, input: Partial<CustomerInput>): Promise<AsaasCustomer> {
-        // We only send fields that are present in input
-        const response = await this.client.post(`/customers/${id}`, input)
+        // We only send fields that are present in input, but we enforce notification logic
+        const payload = { ...input, notificationDisabled: false }
+        const response = await this.client.post(`/customers/${id}`, payload)
         return response.data as AsaasCustomer
     }
 
@@ -216,6 +217,9 @@ export class AsaasService {
         // Validate input
         const validated = CustomerSchema.parse(input)
 
+        // Force notifications enabled
+        const payload = { ...validated, notificationDisabled: false }
+
         // Check if customer already exists
         const existingCustomer = await this.findCustomerByCpfCnpj(validated.cpfCnpj)
 
@@ -224,7 +228,7 @@ export class AsaasService {
             // This ensures we don't send notifications to old emails
             try {
                 console.log(`[Asaas] Updating existing customer ${existingCustomer.id} with new data...`)
-                return await this.updateCustomer(existingCustomer.id, validated)
+                return await this.updateCustomer(existingCustomer.id, payload)
             } catch (error) {
                 console.error('[Asaas] Failed to update customer data, returning existing record:', error)
                 return existingCustomer
@@ -232,7 +236,7 @@ export class AsaasService {
         }
 
         // Create new customer
-        const response = await this.client.post('/customers', validated)
+        const response = await this.client.post('/customers', payload)
         return response.data as AsaasCustomer
     }
 
