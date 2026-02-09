@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useCheckout } from "@/store/CheckoutContext"
 import { useCheckoutToast } from "@/components/ui/CheckoutToast"

@@ -1,3 +1,5 @@
+"use client"
+
 import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { validateStep1, validateStep2, validateStep3, type ValidationErrors, type ValidationResult } from '@/lib/validation'
