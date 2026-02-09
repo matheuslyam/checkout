@@ -1,21 +1,27 @@
-version: '3.8'
-
 services:
   checkout:
     container_name: checkout_app
     build:
       context: .
       dockerfile: Dockerfile
+      target: deps
+    command: npm run dev
     ports:
-      - "3000:3000"
+      - "4000:4000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/.next
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
+      - PORT=4000
+      - HOSTNAME=0.0.0.0
       - ASAAS_API_KEY=${ASAAS_API_KEY}
       - ASAAS_API_URL=${ASAAS_API_URL}
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
-    restart: unless-stopped
+      - NEXT_PUBLIC_ENABLE_TEST_CARD=${NEXT_PUBLIC_ENABLE_TEST_CARD}
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
       interval: 30s
@@ -25,6 +31,28 @@ services:
     networks:
       - checkout_network
 
+  checkout_prod:
+    container_name: checkout_prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_ENABLE_TEST_CARD: "false"
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_ENABLE_TEST_CARD=false
+    networks:
+      - nexus-crm_nexus-network
+
 networks:
   checkout_network:
     driver: bridge
+  nexus-crm_nexus-network:
+    external: true

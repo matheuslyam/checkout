@@ -4,27 +4,15 @@
 // IMPORTANT: Never trust client-side prices!
 // All pricing must come from this catalog.
 
-export interface Product {
-    id: string
-    name: string
-    price: number // in BRL (e.g., 12490 = R$ 12.490,00)
-    description?: string
-    maxInstallments: number
-}
+import { BIKES_CATALOG, Product } from './catalog'
+
+export { type Product }
 
 /**
  * Product catalog - the only source of truth for pricing.
  * To add a new product, add it here with its server-controlled price.
  */
-export const PRODUCTS: Record<string, Product> = {
-    'ambtus-flash': {
-        id: 'ambtus-flash',
-        name: 'AMBTUS FLASH',
-        price: 1264000,
-        description: 'Edição Limitada',
-        maxInstallments: 12,
-    },
-}
+export const PRODUCTS = BIKES_CATALOG
 
 /**
  * Get product by ID

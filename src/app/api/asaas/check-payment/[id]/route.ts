@@ -27,6 +27,19 @@ export async function GET(
             )
         }
 
+        // MOCK PAYMENT STATUS (Bypass)
+        if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true' && (id.startsWith('pay_') || id.startsWith('pay_pix_'))) {
+            // Simulate a short delay or return CONFIRMED immediately
+            console.log(`[Polling] Mock Payment ${id} status: CONFIRMED`)
+            return NextResponse.json({
+                paymentId: id,
+                status: 'CONFIRMED',
+                rawStatus: 'RECEIVED',
+                value: 0,
+                billingType: id.startsWith('pay_pix_') ? 'PIX' : 'CREDIT_CARD',
+            })
+        }
+
         const asaas = getAsaasService()
         const payment = await asaas.getPaymentStatus(id)
 

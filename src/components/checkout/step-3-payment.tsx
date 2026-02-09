@@ -1,30 +1,37 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useCheckout } from "@/store/CheckoutContext"
 import { usePayment } from "@/hooks/usePayment"
+import { isValidCreditCard, isValidCPF } from "@/lib/validation"
 import { Loader2, ChevronDown, ChevronUp, Copy, Check, Clock } from "lucide-react"
+import { getInstallmentOptions } from "@/lib/financial"
 
 export function Step3Payment({ onBack }: { onBack: () => void }) {
     const { state, updateData, setPaymentResult } = useCheckout()
 
-    // INTEGRATION: Use the real hook for PIX logic
-    const { handleGeneratePix, isGeneratingPix } = usePayment()
+    // INTEGRATION: Use the real hook for PIX and Card logic
+    const { handleGeneratePix, isGeneratingPix, handleCardPayment, isProcessingCard } = usePayment()
 
     // Local state for UI feedback
     const [copied, setCopied] = useState(false)
     // const [isSimulatingPix, setIsSimulatingPix] = useState(false) // Removed local simulation state
     const [timeLeft, setTimeLeft] = useState(600) // Default 10 min
     const [isInstallmentsOpen, setIsInstallmentsOpen] = useState(false)
-    const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '' })
+    const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '', cpf: '' })
 
-    const isCardValid = cardData.number.replace(/\D/g, '').length >= 13 &&
+    const isCardValid = isValidCreditCard(cardData.number) &&
         cardData.name.length > 3 &&
         cardData.expiry.length >= 5 &&
+        isValidCPF(cardData.cpf) &&
         cardData.cvv.length >= 3
+
+    // Calculate Installment Options (Financial Engine)
+    const installmentOptions = useMemo(() => {
+        const shippingCents = Math.round((state.frete || 0) * 100)
+        return getInstallmentOptions(state.productPrice, shippingCents)
+    }, [state.productPrice, state.frete])
 
     // Timer logic
     useEffect(() => {
@@ -52,24 +59,15 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
         return `${m}:${s}`
     }
 
-    // SIMULATION for Card Payment (tokenization logic not implemented yet)
-    const handleCardPayment = async () => {
-        // Mock success for Card
-        setPaymentResult({
-            paymentId: 'card_simulated_id',
-            pixQrCode: '',
-            pixPayload: '',
-            pixExpiresAt: ''
-        })
-        updateData('step', 4) // Force navigation to step 4
-    }
-
     // Sync accordion state with context method
     const selectedMethod = state.metodoPagamento
 
     const handleMethodSelect = (method: 'pix' | 'cartao') => {
-        if (selectedMethod === method) return
-        updateData('metodoPagamento', method)
+        if (selectedMethod === method) {
+            updateData('metodoPagamento', null)
+        } else {
+            updateData('metodoPagamento', method)
+        }
     }
 
     const onCopyPix = async () => {
@@ -100,8 +98,8 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
             <div className="flex gap-4 items-center w-[260px] mb-8">
                 <div className="w-[80px] h-[80px] bg-white rounded-[20px] flex items-center justify-center overflow-hidden flex-shrink-0">
                     <Image
-                        src="/images/bike.png"
-                        alt="Ambtus Flash"
+                        src={state.productImage}
+                        alt={state.productName}
                         width={80}
                         height={50}
                         className="object-contain"
@@ -109,18 +107,22 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                 </div>
                 <div className="flex flex-col w-full">
                     <h3 className="font-audiowide text-[19px] text-[#1E90FF] tracking-wide uppercase leading-none mb-1 whitespace-nowrap">
-                        AMBTUS FLASH
+                        {state.productName}
                     </h3>
                     <div className="flex justify-between items-center w-full mb-1">
                         <span className="text-[9px] text-white">Edição Limitada</span>
                         <div className="flex items-center gap-1">
                             <span className="text-[9px] text-white">Cor:</span>
-                            <div className="w-3 h-3 bg-black rounded-[3px] border-[1px] !border-[#383838]"></div>
+                            <div
+                                className="w-3 h-3 rounded-[3px] border-[1px] !border-[#383838]"
+                                style={{ backgroundColor: state.productColor === 'Padrão' ? 'black' : state.productColor }}
+                                title={state.productColor}
+                            />
                         </div>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[12px] text-white whitespace-nowrap">Total a pagar: R$ 12.490,00</span>
-                        <span className="text-[10px] font-bold text-[#1E90FF] whitespace-nowrap">Até 12x de R$ 1.040,83</span>
+                        <span className="text-[12px] text-white whitespace-nowrap">Total a pagar: {formatCurrency(state.productPrice / 100)}</span>
+                        <span className="text-[10px] font-bold text-[#1E90FF] whitespace-nowrap">Até 21x de {formatCurrency((state.productPrice / 100) / 21)}*</span>
                     </div>
                 </div>
             </div>
@@ -131,18 +133,20 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
 
                 {/* --- CARTÃO ACCORDION --- */}
                 <div
-                    onClick={() => handleMethodSelect('cartao')}
                     className={cn(
-                        "rounded-[20px] bg-[#191919] transition-all duration-300 border-[1px] cursor-pointer relative",
+                        "rounded-[20px] bg-[#191919] transition-all duration-300 border-[1px] relative",
                         selectedMethod === 'cartao' ? "!border-[#1E90FF] overflow-visible" : "!border-[#383838] overflow-hidden"
                     )}
                 >
                     {/* Header */}
-                    <div className="p-4 flex items-center justify-between">
+                    <div
+                        onClick={() => handleMethodSelect('cartao')}
+                        className="p-4 flex items-center justify-between cursor-pointer"
+                    >
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-[15px] font-bold text-white">Cartão</span>
-                                <span className="text-[8px] text-[#585858]">Pague em até 12x com segurança.</span>
+                                <span className="text-[8px] text-[#585858]">Pague em até 21x com segurança.</span>
                             </div>
                             {/* Card Flags */}
                             <div className="flex gap-2 mt-2">
@@ -154,7 +158,7 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
 
                     {/* Expanded Content */}
                     {selectedMethod === 'cartao' && (
-                        <div className="px-4 pb-6 pt-0 border-t !border-[#383838]/0"> {/* border transparent mostly */}
+                        <div className="px-4 pb-6 pt-0 border-t !border-[#383838]/0">
                             <p className="text-[9px] text-[#585858] text-center mb-4 leading-tight">
                                 <span className="font-bold">Pagamento Processado pelo Asaas.</span><br />
                                 Seus dados estão protegidos por criptografia de ponta a ponta.
@@ -204,6 +208,28 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                                         onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })}
                                     />
                                 </div>
+
+                                {/* NEW CPF FIELD */}
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-regular text-white">CPF do Titular</label>
+                                    <input
+                                        placeholder="000.000.000-00"
+                                        className="w-full h-[40px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]"
+                                        value={cardData.cpf}
+                                        maxLength={14}
+                                        onChange={(e) => {
+                                            let v = e.target.value.replace(/\D/g, '')
+                                            if (v.length > 11) v = v.slice(0, 11)
+                                            // Mask: 000.000.000-00
+                                            if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
+                                            else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3')
+                                            else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2')
+
+                                            setCardData({ ...cardData, cpf: v })
+                                        }}
+                                    />
+                                </div>
+
                                 <div className="flex flex-col gap-1">
                                     <label className="text-[10px] font-regular text-white hidden">Parcelamento</label>
                                     <div className="relative">
@@ -215,33 +241,37 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                                             )}
                                         >
                                             <span className="text-[12px] text-white">
-                                                {state.parcelas
-                                                    ? `${state.parcelas} ${state.parcelas === 1 ? 'mês' : 'meses'} - ${formatCurrency(12490 / state.parcelas)}`
-                                                    : "Parcelamento"}
+                                                {(() => {
+                                                    const selected = installmentOptions.find(o => o.installment === state.parcelas)
+                                                    return selected
+                                                        ? `${selected.installment}x de ${formatCurrency(selected.value / 100)}`
+                                                        : "Parcelamento"
+                                                })()}
                                             </span>
                                             {isInstallmentsOpen ? <ChevronUp className="w-4 h-4 text-white" /> : <ChevronDown className="w-4 h-4 text-white" />}
                                         </div>
 
                                         {isInstallmentsOpen && (
-                                            <div className="absolute top-[45px] left-0 w-full max-h-[150px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] overflow-hidden z-20 flex flex-col shadow-xl">
+                                            <div className="absolute top-[45px] left-0 w-full max-h-[200px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] overflow-hidden z-20 flex flex-col shadow-xl">
                                                 <div className="overflow-y-auto custom-scrollbar p-1">
-                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map((months) => (
+                                                    {installmentOptions.map((option) => (
                                                         <div
-                                                            key={months}
+                                                            key={option.installment}
                                                             onClick={() => {
-                                                                updateData('parcelas', months)
+                                                                updateData('parcelas', option.installment)
                                                                 setIsInstallmentsOpen(false)
                                                             }}
                                                             className={cn(
                                                                 "w-full py-2 px-3 rounded-[15px] cursor-pointer flex justify-between items-center group transition-colors mb-1 last:mb-0",
-                                                                state.parcelas === months ? "bg-[#1E90FF]" : "hover:bg-[#1E90FF]/20"
+                                                                state.parcelas === option.installment ? "bg-[#1E90FF]" : "hover:bg-[#1E90FF]/20"
                                                             )}
                                                         >
                                                             <span className={cn(
-                                                                "text-[11px] transition-colors",
-                                                                state.parcelas === months ? "text-white font-bold" : "text-white group-hover:text-[#1E90FF]"
+                                                                "text-[10px] transition-colors flex w-full justify-between",
+                                                                state.parcelas === option.installment ? "text-white font-bold" : "text-white group-hover:text-[#1E90FF]"
                                                             )}>
-                                                                {months} {months === 1 ? 'mês' : 'meses'} - {formatCurrency(12490 / months)}
+                                                                <span>{option.installment}x</span>
+                                                                <span>{formatCurrency(option.value / 100)}</span>
                                                             </span>
                                                         </div>
                                                     ))}
@@ -252,11 +282,11 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                                 </div>
 
                                 <Button
-                                    disabled={!isCardValid}
-                                    onClick={handleCardPayment} // Cartão continua simulado
+                                    disabled={!isCardValid || isProcessingCard}
+                                    onClick={() => handleCardPayment(cardData)}
                                     className="w-full h-[40px] mt-2 rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-[12px] hover:opacity-90 transition-opacity border-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Finalizar Pagamento Seguro
+                                    {isProcessingCard ? <Loader2 className="animate-spin" /> : "Finalizar Pagamento Seguro"}
                                 </Button>
                             </div>
                         </div>
@@ -265,14 +295,16 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
 
                 {/* --- PIX ACCORDION --- */}
                 <div
-                    onClick={() => handleMethodSelect('pix')}
                     className={cn(
-                        "rounded-[20px] bg-[#191919] overflow-hidden transition-all duration-300 border-[1px] cursor-pointer",
+                        "rounded-[20px] bg-[#191919] overflow-hidden transition-all duration-300 border-[1px]",
                         selectedMethod === 'pix' ? "!border-[#1E90FF]" : "!border-[#383838]"
                     )}
                 >
                     {/* Header */}
-                    <div className="p-4 flex items-center justify-between">
+                    <div
+                        onClick={() => handleMethodSelect('pix')}
+                        className="p-4 flex items-center justify-between cursor-pointer"
+                    >
                         <div>
                             <div className="flex items-center gap-2">
                                 <span className="text-[15px] font-bold text-white">PIX</span>

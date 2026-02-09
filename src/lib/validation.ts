@@ -127,3 +127,80 @@ export function validateStep3(data: Partial<Step3Data>): ValidationResult {
 
     return { valid: false, errors }
 }
+
+// ============================================
+// Credit Card Validation (Luhn Algorithm)
+// ============================================
+
+export const isValidCreditCard = (value: string) => {
+    // Remove all non-digits
+    const cleanValue = value.replace(/\D/g, '')
+
+    // Check strict length (Common cards are 13-19 digits)
+    if (cleanValue.length < 13 || cleanValue.length > 19) return false
+
+
+    // Check for test card
+    if (cleanValue === '0000000000000000' && process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true') return true
+
+    // Check for common test patterns (like all zeros)
+    if (/^(\d)\1+$/.test(cleanValue)) return false
+
+    // Luhn Algorithm
+    let sum = 0
+    let shouldDouble = false
+
+    // Loop through values starting at the rightmost digit
+    for (let i = cleanValue.length - 1; i >= 0; i--) {
+        let digit = parseInt(cleanValue.charAt(i))
+
+        if (shouldDouble) {
+            if ((digit *= 2) > 9) digit -= 9
+        }
+
+        sum += digit
+        shouldDouble = !shouldDouble
+    }
+
+    return (sum % 10) === 0
+}
+
+// ============================================
+// CPF Validation
+// ============================================
+export const isValidCPF = (value: string) => {
+    const cleanValue = value.replace(/\D/g, '')
+
+    // Check strict length
+    if (cleanValue.length !== 11) return false
+
+    // Check for test CPF
+    if (cleanValue === '12345678900' && process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true') return true
+
+    // Check for common patterns (all same digits)
+    if (/^(\d)\1+$/.test(cleanValue)) return false
+
+    // Generate verification digits
+    let sum = 0
+    let remainder
+
+    for (let i = 1; i <= 9; i++) {
+        sum += parseInt(cleanValue.substring(i - 1, i)) * (11 - i)
+    }
+
+    remainder = (sum * 10) % 11
+    if ((remainder === 10) || (remainder === 11)) remainder = 0
+    if (remainder !== parseInt(cleanValue.substring(9, 10))) return false
+
+    sum = 0
+    for (let i = 1; i <= 10; i++) {
+        sum += parseInt(cleanValue.substring(i - 1, i)) * (12 - i)
+    }
+
+    remainder = (sum * 10) % 11
+    if ((remainder === 10) || (remainder === 11)) remainder = 0
+    if (remainder !== parseInt(cleanValue.substring(10, 11))) return false
+
+    return true
+}
+

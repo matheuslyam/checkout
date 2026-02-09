@@ -144,8 +144,8 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
                 {/* Image */}
                 <div className="w-[80px] h-[80px] bg-white rounded-[20px] flex items-center justify-center overflow-hidden flex-shrink-0">
                     <Image
-                        src="/images/bike.png"
-                        alt="Ambtus Flash"
+                        src={state.productImage}
+                        alt={state.productName}
                         width={80}
                         height={50}
                         className="object-contain"
@@ -155,20 +155,26 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
                 {/* Details */}
                 <div className="flex flex-col w-full">
                     <h3 className="font-audiowide text-[19px] text-[#1E90FF] tracking-wide uppercase leading-none mb-1 whitespace-nowrap">
-                        AMBTUS FLASH
+                        {state.productName}
                     </h3>
 
                     <div className="flex justify-between items-center w-full mb-1">
                         <span className="text-[9px] text-white">Edição Limitada</span>
                         <div className="flex items-center gap-1">
                             <span className="text-[9px] text-white">Cor:</span>
-                            <div className="w-3 h-3 bg-black rounded-[3px] border-[1px] !border-[#383838]"></div>
+                            <div
+                                className="w-3 h-3 rounded-[3px] border-[1px] !border-[#383838]"
+                                style={{ backgroundColor: state.productColor === 'Padrão' ? 'black' : state.productColor }}
+                                title={state.productColor}
+                            />
                         </div>
                     </div>
 
                     <div className="flex flex-col">
-                        <span className="text-[12px] text-white whitespace-nowrap">Total a pagar: R$ 12.490,00</span>
-                        <span className="text-[10px] font-bold text-[#1E90FF] whitespace-nowrap">Até 12x de R$ 1.040,83</span>
+                        <span className="text-[12px] text-white whitespace-nowrap">Total a pagar: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(state.productPrice / 100)}</span>
+                        <span className="text-[10px] font-bold text-[#1E90FF] whitespace-nowrap">
+                            Até 21x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((state.productPrice / 100) / 21)}*
+                        </span>
                     </div>
                 </div>
             </div>

@@ -25,7 +25,14 @@ export const CardPaymentSchema = z.object({
     customerId: z.string().min(1, 'ID do cliente é obrigatório'),
     value: z.number().positive('Valor deve ser maior que zero'),
     installmentCount: z.number().int().min(1).max(21, 'Parcelas devem ser entre 1 e 21'),
-    creditCardToken: z.string().min(1, 'Token do cartão é obrigatório'),
+    creditCardToken: z.string().optional(),
+    creditCard: z.object({
+        holderName: z.string(),
+        number: z.string(),
+        expiryMonth: z.string(),
+        expiryYear: z.string(),
+        ccv: z.string(),
+    }).optional(),
     creditCardHolderInfo: z.object({
         name: z.string().min(3, 'Nome do titular é obrigatório'),
         email: z.string().email('E-mail do titular inválido'),
@@ -37,6 +44,9 @@ export const CardPaymentSchema = z.object({
     description: z.string().optional(),
     externalReference: z.string().optional(),
     dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD'),
+}).refine(data => data.creditCardToken || data.creditCard, {
+    message: "É necessário informar o token do cartão ou os dados do cartão.",
+    path: ["creditCardToken"]
 })
 
 // ============================================
@@ -98,7 +108,14 @@ export class AsaasService {
 
     constructor(config?: AsaasServiceConfig) {
         const apiKey = config?.apiKey || process.env.ASAAS_API_KEY
-        const apiUrl = config?.apiUrl || process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3'
+        let apiUrl = config?.apiUrl || process.env.ASAAS_API_URL
+
+        // 🛡️ Segurança: Forçar URL de produção se estiver em ambiente de produção
+        if (process.env.NODE_ENV === 'production') {
+            apiUrl = 'https://api.asaas.com/v3'
+        } else if (!apiUrl) {
+            apiUrl = 'https://sandbox.asaas.com/api/v3'
+        }
 
         if (!apiKey) {
             throw new Error('ASAAS_API_KEY is not configured')
@@ -125,7 +142,12 @@ export class AsaasService {
                     const asaasErrorCode = data.errors?.[0]?.code
                     const asaasErrorDesc = data.errors?.[0]?.description
 
-                    console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode, desc: asaasErrorDesc })
+                    // Evitar logar dados sensíveis em produção
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode, desc: asaasErrorDesc })
+                    } else {
+                        console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode })
+                    }
 
                     // Enhance error object with friendly message
                     let friendlyMessage = 'Erro ao processar pagamento.'
@@ -172,7 +194,8 @@ export class AsaasService {
 
             return null
         } catch (error) {
-            console.error('Error finding customer:', error)
+            // Sanitize log: do not log the full error object which might contain sensitive headers/data
+            console.error('Error finding customer:', error instanceof Error ? error.message : 'Unknown error')
             return null
         }
     }
@@ -239,6 +262,7 @@ export class AsaasService {
         const installmentValue = validated.value / validated.installmentCount
 
         // Create payment
+        // NOTE: Asaas accepts EITHER creditCardToken OR creditCard object.
         const response = await this.client.post('/payments', {
             customer: validated.customerId,
             billingType: 'CREDIT_CARD',
@@ -249,6 +273,7 @@ export class AsaasService {
             externalReference: validated.externalReference,
             dueDate: validated.dueDate,
             creditCardToken: validated.creditCardToken,
+            creditCard: validated.creditCard, // Passing raw card if present
             creditCardHolderInfo: validated.creditCardHolderInfo,
         })
 

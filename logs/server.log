@@ -1,0 +1,12 @@
+▲ Next.js 16.1.6
+- Local:         http://localhost:4000
+- Network:       http://0.0.0.0:4000
+
+✓ Starting...
+✓ Ready in 172ms
+[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR
+[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR
+[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR
+[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR
+[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR
+[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getProductById } from '@/lib/products'
+import { BIKES_CATALOG } from '@/lib/catalog'
 import { calculateShipping } from '@/lib/shipping'
-import { getAsaasService, CustomerSchema } from '@/services/asaas'
+import { getAsaasService } from '@/services/asaas'
+import { isValidCreditCard } from '@/lib/validation'
+import { calculateReverseTotal } from '@/lib/financial'
 
 // ============================================
 // Input Validation Schemas
@@ -19,12 +21,21 @@ const AddressSchema = z.object({
 })
 
 const CreditCardInfoSchema = z.object({
-    token: z.string().min(1, 'Token do cartão é obrigatório'),
+    token: z.string().optional(),
     holderName: z.string().min(3, 'Nome do titular é obrigatório'),
     holderEmail: z.string().email('Email do titular inválido'),
     holderCpfCnpj: z.string().regex(/^\d{11}$|^\d{14}$/, 'CPF/CNPJ inválido'),
     holderPostalCode: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos'),
     holderAddressNumber: z.string().min(1, 'Número é obrigatório'),
+
+    // Raw data (if not tokenized)
+    number: z.string().optional().refine((val) => {
+        if (!val) return true // Allow empty if using token
+        return isValidCreditCard(val)
+    }, 'Número de cartão inválido'),
+    expiryMonth: z.string().optional(),
+    expiryYear: z.string().optional(),
+    ccv: z.string().optional(),
 })
 
 const PaymentRequestSchema = z.object({
@@ -47,7 +58,7 @@ const PaymentRequestSchema = z.object({
 
     // Credit card specific (optional)
     creditCard: CreditCardInfoSchema.optional(),
-    installments: z.number().int().min(1).max(12).optional(),
+    installments: z.number().int().min(1).max(21).optional(),
 
     // Optional: For security logging only (not used in calculation)
     debugTotal: z.number().optional(),
@@ -92,16 +103,20 @@ interface PriceBreakdown {
 }
 
 function calculateTotal(productId: string, uf: string): PriceBreakdown | null {
-    const product = getProductById(productId)
+    // DIRECT CATALOG LOOKUP - Zero Trust
+    const product = BIKES_CATALOG[productId]
     if (!product) return null
 
-    const shipping = calculateShipping(uf)
-    const total = product.price + shipping
+    const shippingBrl = calculateShipping(uf)
+    // Shipping is BRL (e.g. 150.00), Product is Cents (e.g. 1264000)
+    // Normalize to Cents
+    const shippingCents = Math.round(shippingBrl * 100)
+    const totalCents = product.price + shippingCents
 
     return {
-        productPrice: product.price,
-        shipping,
-        total,
+        productPrice: product.price, // cents
+        shipping: shippingBrl,       // BRL (for display, though likely not used directly)
+        total: totalCents / 100,     // RETURN FLOAT (BRL) for Asaas
         productId: product.id,
         productName: product.name,
     }
@@ -111,16 +126,111 @@ function calculateTotal(productId: string, uf: string): PriceBreakdown | null {
 // POST Handler - Create Payment
 // ============================================
 
+const AsaasErrorMap: Record<string, string> = {
+    'CREDIT_CARD_DECLINED': 'Cartão recusado pelo banco emissor. Tente outro cartão.',
+    'INSUFFICIENT_FUNDS': 'Saldo insuficiente para realizar a transação.',
+    'INVALID_CREDIT_CARD': 'Dados do cartão inválidos. Verifique o número e validade.',
+    'EXPIRED_CREDIT_CARD': 'Cartão vencido.',
+    'BLOCKED_CREDIT_CARD': 'Cartão bloqueado. Contate o emissor.',
+}
+
 export async function POST(request: NextRequest) {
+    let debugPayload: any = {}
+
     try {
         // Parse and validate request body
         const body = await request.json()
+        debugPayload = body // Store for error logging
+        // Detect and handle Test Card Bypass BEFORE strict schema validation
+        // Detect and handle Test Card Bypass BEFORE strict schema validation
+        if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true') {
+            // BYPASS FOR CREDIT CARD
+            if (
+                body.paymentMethod === 'CREDIT_CARD' &&
+                body.creditCard?.number === '0000000000000000' &&
+                body.creditCard?.holderName === 'Matheus Lyam' &&
+                body.creditCard?.expiryMonth === '99' &&
+                body.creditCard?.expiryYear === '2099' &&
+                body.creditCard?.ccv === '999' &&
+                body.creditCard?.holderCpfCnpj === '12345678900'
+            ) {
+                const product = BIKES_CATALOG[body.productId]
+                if (!product) return NextResponse.json({ type: 'USER_ERROR', message: 'Produto não encontrado.' }, { status: 404 })
+
+                const shipping = calculateShipping(body.address?.uf || 'SP')
+                const total = (product.price / 100) + shipping
+                const mockPaymentId = `pay_${Math.random().toString(36).substring(7)}`
+
+                return NextResponse.json({
+                    success: true,
+                    payment: {
+                        id: mockPaymentId,
+                        status: 'RECEIVED',
+                        method: 'CREDIT_CARD',
+                        value: total,
+                        breakdown: { product: product.price / 100, shipping },
+                    },
+                    customer: { id: 'cus_test_123' },
+                    externalReference: `test-${body.productId}-${Date.now()}`,
+                })
+            }
+
+            // BYPASS FOR PIX
+            if (
+                body.paymentMethod === 'PIX' &&
+                body.customer?.cpfCnpj === '12345678900'
+            ) {
+                const product = BIKES_CATALOG[body.productId]
+                if (!product) return NextResponse.json({ type: 'USER_ERROR', message: 'Produto não encontrado.' }, { status: 404 })
+
+                const shipping = calculateShipping(body.address?.uf || 'SP')
+                const total = (product.price / 100) + shipping
+                const mockPaymentId = `pay_pix_${Math.random().toString(36).substring(7)}`
+
+                // Mock future expiration
+                const expiresAt = new Date()
+                expiresAt.setMinutes(expiresAt.getMinutes() + 15)
+
+                console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 200 | Payload: TEST_PIX_BYPASS_${mockPaymentId}`)
+
+                return NextResponse.json({
+                    success: true,
+                    payment: {
+                        id: mockPaymentId,
+                        status: 'PENDING', // PENDING allows the frontend to start polling (or we can return CONFIRMED immediately if we want to skip polling?)
+                        // If we return PENDING, the frontend will poll check-payment. We need to mock that too?
+                        // Actually, if we return CONFIRMED here, Step 3 might not expect it or usePayment handles it.
+                        // usePayment sets result and calls nextStep. It doesn't check status immediately unless we polling. 
+                        // But wait, for PIX we usually show QR Code.
+                        // If I return PENDING, usePayment receives it and shows toast.
+                        // Then it polls. I need simulating the webhook or polling response?
+                        // If I return CONFIRMED, usePayment will just go to success?
+                        // usePayment logic for PIX: setPaymentResult (id, qrCode). 
+                        // It DOES NOT automatically poll unless `startPolling` is called.
+                        // In `usePayment.ts`: `useEffect` monitors `paymentId` and `paymentStatus === 'PENDING'`.
+                        // So if I return PENDING, it starts polling.
+                        // Check-payment endpoint ALSO needs to support the mock ID.
+
+                        method: 'PIX',
+                        value: total,
+                        breakdown: { product: product.price / 100, shipping },
+                        pixQrCode: '00020126580014BR.GOV.BCB.PIX0136123e4567-e89b-12d3-a456-426614174000520400005303986540510.005802BR5913Ambtus Motors6008BRASILIA62070503***6304ABCD',
+                        pixPayload: '00020126580014BR.GOV.BCB.PIX0136123e4567-e89b-12d3-a456-426614174000520400005303986540510.005802BR5913Ambtus Motors6008BRASILIA62070503***6304ABCD'
+                    },
+                    customer: { id: 'cus_test_123' },
+                    externalReference: `test-${body.productId}-${Date.now()}`,
+                })
+            }
+        }
+
         const parseResult = PaymentRequestSchema.safeParse(body)
 
         if (!parseResult.success) {
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: INVALID_SCHEMA`)
             return NextResponse.json(
                 {
-                    error: 'Dados inválidos',
+                    type: 'USER_ERROR',
+                    message: 'Dados inválidos no formulário.',
                     details: parseResult.error.issues
                 },
                 { status: 400 }
@@ -141,40 +251,67 @@ export async function POST(request: NextRequest) {
                 customerCpf: data.customer.cpfCnpj,
             }, request)
 
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 404 | Payload: PRODUCT_NOT_FOUND`)
             return NextResponse.json(
-                { error: 'Produto não encontrado' },
+                { type: 'USER_ERROR', message: 'Produto não encontrado.' },
                 { status: 404 }
             )
         }
 
         // ============================================
-        // SECURITY: Log if front-end price differs
+        // CHECKOUT LOGIC: Calculate Final Value with Fees
         // ============================================
 
-        if (data.debugTotal !== undefined && data.debugTotal !== priceBreakdown.total) {
+        let finalValueToCharge = priceBreakdown.total // Default (Float)
+
+        if (data.paymentMethod === 'CREDIT_CARD') {
+            const installments = data.installments || 1
+            // Convert to cents for accurate calculation
+            const totalCents = Math.round(priceBreakdown.total * 100)
+
+            // Calculate with Fees and Anticipation
+            const totalWithFeesCents = calculateReverseTotal(totalCents, installments)
+
+            // Convert back to Float for Asaas
+            finalValueToCharge = totalWithFeesCents / 100
+        }
+
+        // ============================================
+        // SECURITY: Log if front-end price differs
+        // ============================================
+        // Tolerance increased due to float math potential differences, but logic should align.
+        if (data.debugTotal !== undefined && Math.abs(data.debugTotal - finalValueToCharge) > 0.05) {
             logSecurityEvent('PRICE_MISMATCH', {
                 frontEndValue: data.debugTotal,
-                serverValue: priceBreakdown.total,
-                difference: data.debugTotal - priceBreakdown.total,
+                serverValue: finalValueToCharge,
+                difference: data.debugTotal - finalValueToCharge,
                 customerCpf: data.customer.cpfCnpj,
                 productId: data.productId,
+                method: data.paymentMethod
             }, request)
+
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 403 | Payload: SECURITY_VIOLATION_PRICE`)
+            return NextResponse.json(
+                {
+                    type: 'SECURITY_ERROR',
+                    message: 'Erro de segurança: Divergência de valores. Atualize a página e tente novamente.'
+                },
+                { status: 403 }
+            )
         }
 
         // Validate installments for credit card
         if (data.paymentMethod === 'CREDIT_CARD') {
             const installments = data.installments || 1
-            const product = getProductById(data.productId)
+            const product = BIKES_CATALOG[data.productId]
 
-            if (!product || installments > product.maxInstallments) {
-                logSecurityEvent('INVALID_INSTALLMENTS', {
-                    requested: installments,
-                    maxAllowed: product?.maxInstallments || 0,
-                    customerCpf: data.customer.cpfCnpj,
-                }, request)
+            // Allow up to 21 installments
+            const maxInstallments = product?.maxInstallments || 21
 
+            if (!product || installments > maxInstallments) {
+                console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: INVALID_INSTALLMENTS`)
                 return NextResponse.json(
-                    { error: 'Número de parcelas inválido' },
+                    { type: 'USER_ERROR', message: `Número de parcelas inválido (Máx: ${maxInstallments}).` },
                     { status: 400 }
                 )
             }
@@ -200,7 +337,6 @@ export async function POST(request: NextRequest) {
         const dueDate = new Date()
         dueDate.setDate(dueDate.getDate() + 3) // 3 days from now
         const dueDateStr = dueDate.toISOString().split('T')[0]
-
         const externalReference = `${data.productId}-${Date.now()}`
 
         let paymentResult
@@ -208,7 +344,7 @@ export async function POST(request: NextRequest) {
         if (data.paymentMethod === 'PIX') {
             paymentResult = await asaas.createPixPayment({
                 customerId: customer.id,
-                value: priceBreakdown.total, // SERVER-CALCULATED VALUE
+                value: finalValueToCharge,
                 description: `${priceBreakdown.productName} + Frete`,
                 externalReference,
                 dueDate: dueDateStr,
@@ -216,9 +352,16 @@ export async function POST(request: NextRequest) {
         } else if (data.paymentMethod === 'CREDIT_CARD' && data.creditCard) {
             paymentResult = await asaas.createCardPayment({
                 customerId: customer.id,
-                value: priceBreakdown.total, // SERVER-CALCULATED VALUE
+                value: finalValueToCharge, // Value with fees
                 installmentCount: data.installments || 1,
                 creditCardToken: data.creditCard.token,
+                creditCard: data.creditCard.number ? {
+                    holderName: data.creditCard.holderName,
+                    number: data.creditCard.number,
+                    expiryMonth: data.creditCard.expiryMonth || '',
+                    expiryYear: data.creditCard.expiryYear || '',
+                    ccv: data.creditCard.ccv || '',
+                } : undefined,
                 creditCardHolderInfo: {
                     name: data.creditCard.holderName,
                     email: data.creditCard.holderEmail,
@@ -226,13 +369,13 @@ export async function POST(request: NextRequest) {
                     postalCode: data.creditCard.holderPostalCode,
                     addressNumber: data.creditCard.holderAddressNumber,
                 },
-                description: `${priceBreakdown.productName} + Frete`,
+                description: `${priceBreakdown.productName} + Frete + Taxas`,
                 externalReference,
                 dueDate: dueDateStr,
             })
         } else {
             return NextResponse.json(
-                { error: 'Método de pagamento não suportado ou dados incompletos' },
+                { type: 'USER_ERROR', message: 'Método de pagamento inválido.' },
                 { status: 400 }
             )
         }
@@ -241,16 +384,7 @@ export async function POST(request: NextRequest) {
         // Success Response
         // ============================================
 
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.log('✅ [Payment] Created successfully')
-        console.log(`   Payment ID: ${paymentResult.id}`)
-        console.log(`   Method: ${data.paymentMethod}`)
-        console.log(`   Product: ${priceBreakdown.productName}`)
-        console.log(`   Product Price: R$ ${priceBreakdown.productPrice.toFixed(2)}`)
-        console.log(`   Shipping: R$ ${priceBreakdown.shipping.toFixed(2)}`)
-        console.log(`   Total: R$ ${priceBreakdown.total.toFixed(2)}`)
-        console.log(`   Customer: ${customer.id}`)
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 200 | Payload: PAYMENT_CREATED_${paymentResult.id}`)
 
         return NextResponse.json({
             success: true,
@@ -258,7 +392,7 @@ export async function POST(request: NextRequest) {
                 id: paymentResult.id,
                 status: paymentResult.status,
                 method: data.paymentMethod,
-                value: priceBreakdown.total,
+                value: finalValueToCharge,
                 breakdown: {
                     product: priceBreakdown.productPrice,
                     shipping: priceBreakdown.shipping,
@@ -273,37 +407,39 @@ export async function POST(request: NextRequest) {
         })
 
     } catch (error: any) {
-        console.error('[Payment] Error creating payment:', error)
-
-        // Don't expose internal errors to client unless they are friendly Asaas errors
-        const message = error.message || 'Erro interno'
-        const isValidationError = message.includes('obrigatório') || message.includes('inválido')
-        const isAsaasError = error.code && error.status // Check if it's our enhanced error
-
-        // If it's a known Asaas error (like insufficient_funds), return the friendly message
-        if (isAsaasError) {
+        // Handle known Asaas User Errors
+        const errCode = error.code as string | undefined
+        if (errCode && AsaasErrorMap[errCode]) {
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: ASAAS_ERROR_${errCode}`)
             return NextResponse.json(
-                { error: message, code: error.code },
-                { status: 400 } // Always return 400 for business logic errors so frontend can handle gracefully
+                {
+                    type: 'USER_ERROR',
+                    message: AsaasErrorMap[errCode],
+                    code: errCode
+                },
+                { status: 400 }
             )
         }
 
+        // Fallback for other known validation errors
+        if (error.message && (error.message.includes('obrigatório') || error.message.includes('inválido'))) {
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: VALIDATION_ERROR`)
+            return NextResponse.json(
+                { type: 'USER_ERROR', message: error.message },
+                { status: 400 }
+            )
+        }
+
+        console.error('🔥 [INTERNAL_ERROR] Critical Failure in Checkout:', error)
+        console.error('   Request Payload:', debugPayload)
+        console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 500 | Payload: INTERNAL_SYSTEM_ERROR`)
+
         return NextResponse.json(
-            { error: isValidationError ? message : 'Erro ao processar pagamento' },
-            { status: isValidationError ? 400 : 500 }
+            {
+                type: 'INTERNAL_ERROR',
+                message: 'Sistema temporariamente instável. Por favor, tente novamente em alguns instantes.'
+            },
+            { status: 500 }
         )
     }
-}
-
-// ============================================
-// GET Handler - Health Check
-// ============================================
-
-export async function GET() {
-    return NextResponse.json({
-        status: 'ok',
-        endpoint: '/api/asaas/pay',
-        methods: ['POST'],
-        description: 'Create secure payment with server-side price calculation',
-    })
 }

@@ -2,8 +2,10 @@
 
 import Image from "next/image"
 import { Check } from "lucide-react"
+import { useCheckout } from "@/store/CheckoutContext"
 
 export function Step4Success() {
+    const { state, reset } = useCheckout()
     return (
         <div className="w-fit bg-[#212121] rounded-[20px] p-[45px] pt-[20px] pb-[50px] mx-auto text-white flex flex-col items-center shadow-2xl animate-in fade-in zoom-in duration-500">
             {/* Progress Bar Container */}
@@ -19,26 +21,30 @@ export function Step4Success() {
 
             {/* Product Card */}
             <div className="w-[260px] bg-white rounded-[20px] p-6 flex flex-col items-center mb-6">
-                <div className="relative w-full h-[120px] mb-4 flex items-center justify-center">
+                <div className="relative w-full h-[180px] mb-4 flex items-center justify-center">
                     <Image
-                        src="/images/bike.png"
-                        alt="Ambtus Flash"
-                        width={180}
-                        height={120}
+                        src={state.productImage}
+                        alt={state.productName}
+                        fill
                         className="object-contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                 </div>
             </div>
 
             <div className="w-[260px] flex flex-col mb-8">
                 <h3 className="font-audiowide text-[27.5px] text-[#1E90FF] tracking-wide uppercase leading-none mb-2 text-center whitespace-nowrap">
-                    AMBTUS FLASH
+                    {state.productName}
                 </h3>
                 <div className="flex justify-between items-center w-full mb-1 px-1">
                     <span className="text-[10px] text-white">Edição Limitada</span>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-white">Cor:</span>
-                        <div className="w-4 h-4 bg-black rounded-[4px] border-[1px] border-[#383838]"></div>
+                        <div
+                            className="w-4 h-4 rounded-[4px] border-[1px] border-[#383838]"
+                            style={{ backgroundColor: state.productColor === 'Padrão' ? 'black' : state.productColor }}
+                            title={state.productColor}
+                        ></div>
                     </div>
                 </div>
             </div>

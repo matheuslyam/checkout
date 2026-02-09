@@ -31,6 +31,15 @@ export interface CheckoutState {
     metodoPagamento: MetodoPagamento
     parcelas: number
 
+    // Product Data (Dynamic)
+    productId: string
+    productName: string
+    productImage: string
+    productDescription: string
+    productPrice: number
+    productOriginalPrice: number
+    productColor: string
+
     // Payment Result (from Asaas)
     paymentId: string
     paymentStatus: 'PENDING' | 'CONFIRMED' | 'FAILED' | null
@@ -80,6 +89,13 @@ const initialState: CheckoutState = {
     estado: '',
     metodoPagamento: null,
     parcelas: 1,
+    productId: 'ambtus-flash', // Default fallback
+    productName: 'AMBTUS FLASH',
+    productImage: '/images/bike.png',
+    productDescription: '', // Added description
+    productPrice: 1249000, // Default price
+    productOriginalPrice: 1400000,
+    productColor: 'Padrão',
     installmentOptions: [],
     paymentId: '',
     paymentStatus: null,

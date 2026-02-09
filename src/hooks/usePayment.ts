@@ -12,6 +12,7 @@ export function usePayment() {
 
     const [isLoadingInstallments, setIsLoadingInstallments] = useState(false)
     const [isGeneratingPix, setIsGeneratingPix] = useState(false)
+    const [isProcessingCard, setIsProcessingCard] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isPolling, setIsPolling] = useState(false)
 
@@ -74,10 +75,7 @@ export function usePayment() {
                 const data = await response.json()
                 if (data.installments) {
                     setInstallmentOptions(data.installments)
-                    // Set default to 1x if not set
-                    if (state.parcelas === 1) {
-                        updateData('parcelas', 1)
-                    }
+                    // Note: parcelas default is already 1 in initialState, no need to update
                 }
             } catch (error) {
                 console.error('Error fetching installments:', error)
@@ -87,7 +85,7 @@ export function usePayment() {
         }
 
         fetchInstallments()
-    }, [state.estado, setInstallmentOptions, updateData]) // Added updateData to deps to satisfy linter if strictly needed, though unstable in some contexts, usually context functions are stable.
+    }, [state.estado, setInstallmentOptions])
 
     // Start polling when we have a payment ID
     useEffect(() => {
@@ -169,11 +167,130 @@ export function usePayment() {
         }
     }
 
+    // Process Credit Card Payment
+    const handleCardPayment = async (cardData: {
+        number: string
+        name: string
+        expiry: string
+        cvv: string
+        cpf: string
+    }) => {
+        setIsProcessingCard(true)
+        setError(null)
+
+        // Log Step Start
+        console.log(`[CHECKOUT_FLOW] Step: 3 | Status: PENDING | Payload: START_CARD_TRANSACTION`)
+
+        try {
+            // Split expiry MM/YY
+            const [expiryMonth, expiryYear] = cardData.expiry.split('/')
+
+            // Clean number and phone
+            const cleanPhone = state.telefone?.replace(/\D/g, '') || ''
+            const cleanCpf = cardData.cpf.replace(/\D/g, '')
+
+            const payload = {
+                productId: 'ambtus-flash',
+                installments: state.parcelas,
+                customer: {
+                    name: state.nome,
+                    email: state.email,
+                    cpfCnpj: cleanCpf, // Use card CPF for customer too if strictly needed, or keep state.cpf? Usually customer CPF is global. Let's use card CPF as it's the one being entered.
+                    phone: cleanPhone,
+                },
+                address: {
+                    cep: state.cep.replace(/\D/g, ''),
+                    endereco: state.endereco,
+                    numero: state.numero,
+                    complemento: state.complemento,
+                    bairro: state.bairro,
+                    cidade: state.cidade,
+                    uf: state.estado,
+                },
+                paymentMethod: 'CREDIT_CARD',
+                creditCard: {
+                    holderName: cardData.name,
+                    number: cardData.number.replace(/\s/g, ''),
+                    expiryMonth,
+                    expiryYear: `20${expiryYear}`,
+                    ccv: cardData.cvv,
+
+                    holderEmail: state.email,
+                    holderCpfCnpj: cleanCpf,
+                    holderPostalCode: state.cep.replace(/\D/g, ''),
+                    holderAddressNumber: state.numero,
+                    holderPhone: cleanPhone
+                }
+            }
+
+            const response = await fetch('/api/asaas/pay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+
+            const data = await response.json()
+
+            // Log Result
+            console.log(`[CHECKOUT_FLOW] Step: 3 | Status: ${response.status} | Payload: ${JSON.stringify(data)}`)
+
+            // 🔒 THE SUCCESS LOCK: Only proceed if status is explicitly 200
+            if (response.status === 200 && data.success) {
+                // Success
+                setPaymentResult({
+                    paymentId: data.payment.id,
+                    pixQrCode: '',
+                    pixPayload: '',
+                    pixExpiresAt: '',
+                })
+                setPaymentStatus('CONFIRMED')
+
+                showToast('Pagamento aprovado com sucesso!', 'success')
+
+                // Explicit Navigation
+                nextStep()
+                return
+            }
+
+            // 🛡️ HANDLE ERRORS BY TYPE
+
+            if (data.type === 'SECURITY_ERROR') {
+                showToast(data.message || 'Erro de segurança.', 'error')
+                return
+            }
+
+            if (data.type === 'USER_ERROR') {
+                showToast(data.message || 'Verifique os dados e tente novamente.', 'error')
+                return
+            }
+
+            if (data.type === 'INTERNAL_ERROR' || response.status >= 500) {
+                showToast('Sistema temporariamente instável. Tente em instantes.', 'error')
+                return
+            }
+
+            // Fallback for unmapped errors
+            throw new Error(data.message || 'Erro inesperado')
+
+        } catch (err: any) {
+            console.error('Error processing card:', err)
+
+            // If we caught a random JS error or network fail (not api response)
+            if (!err.message?.includes('Sistema')) { // Avoid double toast if we already toasted above
+                showToast('Não foi possível conectar ao servidor.', 'error')
+            }
+        } finally {
+            setIsProcessingCard(false)
+        }
+    }
+
     return {
         isLoadingInstallments,
         isGeneratingPix,
+        isProcessingCard,
         error,
         isPolling,
-        handleGeneratePix
+        handleGeneratePix,
+        handleCardPayment
     }
 }

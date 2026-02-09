@@ -4,19 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, Truck, Shield, Check, Loader2 } from 'lucide-react'
 import { useCheckout } from '@/store/CheckoutContext'
 
-const PRODUCT = {
-    name: 'Bike Elétrica Ambtus',
-    price: 6999.0,
-    originalPrice: 8499.0,
-    image: '/bike-placeholder.jpg',
-    features: ['Motor 350W', 'Bateria 48V 13Ah', 'Autonomia 60km'],
-}
+// const PRODUCT = {
+//     name: 'Bike Elétrica Ambtus',
+//     price: 6999.0,
+//     originalPrice: 8499.0,
+//     image: '/bike-placeholder.jpg',
+//     features: ['Motor 350W', 'Bateria 48V 13Ah', 'Autonomia 60km'],
+// }
 
 export function OrderSummary() {
     const { state, isHydrated } = useCheckout()
 
-    const discount = state.metodoPagamento === 'pix' ? PRODUCT.price * 0.05 : 0
-    const subtotal = PRODUCT.price
+    // Dynamic data from context
+    const productName = state.productName
+    const productPrice = state.productPrice
+    const features = ['Motor 350W', 'Bateria 48V 13Ah', 'Autonomia 60km'] // Could be dynamic too if we add to products.ts
+
+    const discount = state.metodoPagamento === 'pix' ? productPrice * 0.05 : 0
+    const subtotal = productPrice
     const frete = state.frete || 0
     const finalPrice = subtotal - discount + frete
 
@@ -69,10 +74,10 @@ export function OrderSummary() {
                 </div>
                 <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 dark:text-white">
-                        {PRODUCT.name}
+                        {productName}
                     </h4>
                     <ul className="mt-1 space-y-0.5">
-                        {PRODUCT.features.map((feature, index) => (
+                        {features.map((feature, index) => (
                             <li key={index} className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 <Check className="w-3 h-3 text-green-500" />
                                 {feature}

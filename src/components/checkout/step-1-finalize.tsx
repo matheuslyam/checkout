@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useCheckout } from "@/store/CheckoutContext"
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
+import { getInstallmentOptions } from "@/lib/financial"
 
 // Schema definition
 const formSchema = z.object({
@@ -67,6 +68,14 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
         }, 0)
     }
 
+    const maxInstallment = useMemo(() => {
+        const options = getInstallmentOptions(state.productPrice, 0)
+        return options[options.length - 1]
+    }, [state.productPrice])
+
+    const formatCurrency = (val: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val / 100)
+
     return (
         <div className="w-fit bg-[#212121] rounded-[20px] p-[45px] pt-[20px] pb-[50px] mx-auto text-white flex flex-col items-center shadow-2xl">
             {/* Progress Bar Container */}
@@ -81,8 +90,8 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
             {/* Product Image */}
             <div className="bg-white rounded-[20px] p-4 mb-4 w-[260px] h-[116px] flex items-center justify-center overflow-hidden">
                 <Image
-                    src="/images/bike.png"
-                    alt="Ambtus Flash"
+                    src={state.productImage}
+                    alt={state.productName}
                     width={260}
                     height={116}
                     className="object-contain"
@@ -92,7 +101,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
 
             {/* Product Name */}
             <h2 className="font-audiowide text-[27.5px] text-[#1E90FF] tracking-wide uppercase mb-1 w-[260px] whitespace-nowrap text-center">
-                AMBTUS FLASH
+                {state.productName}
             </h2>
 
             {/* Extras */}
@@ -100,14 +109,18 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                 <span className="text-[11px] text-[#FFFFFF]">Edição Limitada</span>
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] text-[#FFFFFF]">Cor:</span>
-                    <div className="w-5 h-5 bg-black rounded-[5px] border-[1px] !border-[#383838]"></div>
+                    <div
+                        className="w-5 h-5 rounded-[5px] border-[1px] !border-[#383838]"
+                        style={{ backgroundColor: state.productColor === 'Padrão' ? 'black' : state.productColor }}
+                        title={state.productColor}
+                    />
                 </div>
             </div>
 
             {/* Price */}
             <div className="mb-10 w-[260px] text-center">
-                <div className="text-[41px] font-bold leading-none mb-1">R$ 12.490,00</div>
-                <div className="text-[#1E90FF] font-bold text-[15px]">Até 12x de R$ 1.040,83</div>
+                <div className="text-[41px] font-bold leading-none mb-1">{formatCurrency(state.productPrice)}</div>
+                <div className="text-[#1E90FF] font-bold text-[15px]">Até {maxInstallment.installment}x de {formatCurrency(maxInstallment.value)}</div>
             </div>
 
             {/* Personal Data Form */}
