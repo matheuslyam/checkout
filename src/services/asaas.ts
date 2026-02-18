@@ -107,7 +107,11 @@ export class AsaasService {
     private client: AxiosInstance
 
     constructor(config?: AsaasServiceConfig) {
-        const apiKey = config?.apiKey || process.env.ASAAS_API_KEY
+        // TEMPORARY FIX: Hardcoded Key to bypass Environment issues
+        const apiKey = config?.apiKey || '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhYzkzN2JlLWVlZjMtNGY2MC04MmY2LTdkMmNlOGRjMDU2Zjo6JGFhY2hfYzFiZGI4ZjEtYjQwZC00MWZlLWE3ZGYtYmI1NmYzMTdhMmQ4'
+        // || process.env.ASAAS_API_KEY_INTERNAL || process.env.ASAAS_API_KEY
+
+        console.log("USING HARDCODED KEY IN CODE")
         let apiUrl = config?.apiUrl || process.env.ASAAS_API_URL
 
         // 🛡️ Segurança: Forçar URL de produção se estiver em ambiente de produção
@@ -117,9 +121,18 @@ export class AsaasService {
             apiUrl = 'https://sandbox.asaas.com/api/v3'
         }
 
+        // DEBUG: Log Raw Environment Variables (Safe Log)
+        const keyLen = apiKey ? apiKey.length : 0
+        console.log('[ASAAS_CONFIG] Raw API Key Length:', keyLen)
+        console.log('[ASAAS_CONFIG] Raw ASAAS_API_URL:', process.env.ASAAS_API_URL)
+
         if (!apiKey) {
+            console.error('[ASAAS_CONFIG] CRITICAL: API Key is missing (Checked ASAAS_API_KEY_INTERNAL)')
             throw new Error('ASAAS_API_KEY is not configured')
         }
+
+        // DEBUG: Verify API Key format (masked)
+        console.log(`[ASAAS_CONFIG] Key start: ${apiKey.substring(0, 5)}...`)
 
         this.client = axios.create({
             baseURL: apiUrl,

@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/*
+ * Bitstrum Design Tokens
+ * Aesthetic: "Cuteness & Logic" — plush textures, organic warmth, dark cozy mode
+ */
+@theme {
+  --color-plushie: #D2691E;
+  --color-plushie-light: #e0864a;
+  --color-plushie-dark: #a04f12;
+  --color-strum: #FF7F50;
+  --color-strum-light: #ffa07a;
+  --color-soundhole: #3d1f0b;
+  --color-soundhole-deep: #2a1507;
+  --color-bg: #121212;
+  --color-bg-surface: #1a1a1a;
+  --color-bg-elevated: #242424;
+  --color-text-primary: #f5e6d3;
+  --color-text-muted: #a89584;
+
+  --radius-plush: 2rem;
+  --radius-plush-lg: 3rem;
+  --radius-plush-xl: 4rem;
+  --radius-full: 9999px;
+
+  --shadow-plush: 0 8px 32px rgba(210, 105, 30, 0.15), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-plush-hover: 0 12px 48px rgba(210, 105, 30, 0.25), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-soundhole: inset 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-string-glow: 0 0 12px rgba(255, 127, 80, 0.6), 0 0 24px rgba(255, 127, 80, 0.3);
+
+  --font-family-display: "Outfit", system-ui, sans-serif;
+  --font-family-body: "Inter", system-ui, sans-serif;
+
+  --spacing-string-gap: 1.5rem;
+
+  --duration-breathe: 3s;
+  --duration-vibrate: 150ms;
+  --duration-glow: 400ms;
+}
+
+/* Google Fonts import */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap");
+
+/* Global Reset & Base */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

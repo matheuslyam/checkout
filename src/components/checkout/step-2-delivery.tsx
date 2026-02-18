@@ -6,7 +6,8 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useCheckout } from "@/store/CheckoutContext"
-import { useEffect, useState } from "react"
+import { getInstallmentOptions } from "@/lib/financial"
+import { useEffect, useState, useMemo } from "react"
 import { Loader2 } from "lucide-react"
 import Image from "next/image"
 
@@ -127,6 +128,18 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
         onNext()
     }
 
+    const maxInstallment = useMemo(() => {
+        // We use 0 for shipping here to show base product financing potential,
+        // or we could use 'state.frete' if we want to be dynamic. 
+        // Given the design usually shows the "product" price, let's stick to product price.
+        // BUT, if the user complained about mismatch, it's better to show the "real" max installment
+        // matching the final step if possible. 
+        // However, before ZIP code, we don't know freight. 
+        // So let's use 0 (product only) but WITH FEES.
+        const options = getInstallmentOptions(state.productPrice, 0)
+        return options[options.length - 1]
+    }, [state.productPrice])
+
     return (
         <div className="w-fit bg-[#212121] rounded-[20px] p-[45px] pt-[20px] pb-[50px] mx-auto text-white flex flex-col items-center shadow-2xl">
             {/* Progress Bar Container */}
@@ -143,18 +156,21 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
             <div className="flex gap-4 items-center w-[260px] mb-8">
                 {/* Image */}
                 <div className="w-[80px] h-[80px] bg-white rounded-[20px] flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <Image
-                        src={state.productImage}
-                        alt={state.productName}
-                        width={80}
-                        height={50}
-                        className="object-contain"
-                    />
+                    {state.productImage && (
+                        <Image
+                            src={state.productImage}
+                            alt={state.productName}
+                            width={80}
+                            height={50}
+                            className="object-contain"
+                            style={{ width: 'auto', height: 'auto' }}
+                        />
+                    )}
                 </div>
 
                 {/* Details */}
                 <div className="flex flex-col w-full">
-                    <h3 className="font-audiowide text-[19px] text-[#1E90FF] tracking-wide uppercase leading-none mb-1 whitespace-nowrap">
+                    <h3 className="font-audiowide text-[19px] text-[#1E90FF] tracking-wide uppercase leading-tight mb-1">
                         {state.productName}
                     </h3>
 
@@ -170,11 +186,8 @@ export function Step2Delivery({ onNext, onBack }: Step2DeliveryProps) {
                         </div>
                     </div>
 
-                    <div className="flex flex-col">
-                        <span className="text-[12px] text-white whitespace-nowrap">Total a pagar: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(state.productPrice / 100)}</span>
-                        <span className="text-[10px] font-bold text-[#1E90FF] whitespace-nowrap">
-                            Até 21x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((state.productPrice / 100) / 21)}*
-                        </span>
+                    <div className="flex flex-col items-start mt-1 gap-[2px]">
+                        <span className="text-[#1E90FF] font-bold text-[10px]">Entrega em até 7 dias</span>
                     </div>
                 </div>
             </div>

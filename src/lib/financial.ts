@@ -35,9 +35,14 @@ export function calculateReverseTotal(targetNetCents: number, installments: numb
 
     const intermediationRate = getFeePercentage(installments) / 100
 
-    // Anticipation: 1.6% per installment (Linear approx for full anticipation)
-    // For 1x, we usually presume 1 month anticipation (30 days -> 2 days)
-    const anticipationRate = (1.6 / 100) * installments
+    // Anticipation Logic
+    // 1x: 1.15% p.m.
+    // 2x+: 1.60% p.m.
+    const monthlyAnticipationRate = installments === 1 ? 1.15 : 1.6
+
+    // Formula: Rate * (N+1)/2  (Linear Approximation for Average Term)
+    // This reduces the effective rate significantly compared to Rate * N
+    const anticipationRate = (monthlyAnticipationRate / 100) * ((installments + 1) / 2)
 
     const totalRate = intermediationRate + anticipationRate
 

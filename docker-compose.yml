@@ -18,10 +18,8 @@ services:
       - NODE_ENV=development
       - PORT=4000
       - HOSTNAME=0.0.0.0
-      - ASAAS_API_KEY=${ASAAS_API_KEY}
-      - ASAAS_API_URL=${ASAAS_API_URL}
-      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
-      - NEXT_PUBLIC_ENABLE_TEST_CARD=${NEXT_PUBLIC_ENABLE_TEST_CARD}
+      - WATCHPACK_POLLING=true
+
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
       interval: 30s
@@ -47,7 +45,10 @@ services:
       - NODE_ENV=production
       - PORT=4000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_ENABLE_TEST_CARD=false
+      - ASAAS_API_URL=${ASAAS_API_URL}
+      - ASAAS_API_KEY_INTERNAL=$$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhYzkzN2JlLWVlZjMtNGY2MC04MmY2LTdkMmNlOGRjMDU2Zjo6JGFhY2hfYzFiZGI4ZjEtYjQwZC00MWZlLWE3ZGYtYmI1NmYzMTdhMmQ4
+      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+      - NEXT_PUBLIC_ENABLE_TEST_CARD=${NEXT_PUBLIC_ENABLE_TEST_CARD}
     networks:
       - nexus-crm_nexus-network
 

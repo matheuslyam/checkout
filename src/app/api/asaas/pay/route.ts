@@ -144,6 +144,12 @@ export async function POST(request: NextRequest) {
 
         // STRICT LOGGING: Verify exact Product ID received
         console.log("FINAL PRODUCT ID TO ASAAS:", body.productId)
+        console.log("[DEBUG] Env Check:", {
+            NODE_ENV: process.env.NODE_ENV,
+            API_KEY_PRESENT: !!process.env.ASAAS_API_KEY,
+            API_KEY_VALUE_DEBUG: process.env.ASAAS_API_KEY ? `${process.env.ASAAS_API_KEY.substring(0, 5)}...` : 'UNDEFINED',
+            API_URL: process.env.ASAAS_API_URL
+        })
 
         // Detect and handle Test Card Bypass BEFORE strict schema validation
         // Detect and handle Test Card Bypass BEFORE strict schema validation
@@ -441,7 +447,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
             {
                 type: 'INTERNAL_ERROR',
-                message: 'Sistema temporariamente instável. Por favor, tente novamente em alguns instantes.'
+                message: process.env.NODE_ENV === 'development' ? `Erro Interno: ${error.message}` : 'Sistema temporariamente instável. Por favor, tente novamente em alguns instantes.',
+                debug: process.env.NODE_ENV === 'development' ? JSON.stringify(error) : undefined
             },
             { status: 500 }
         )

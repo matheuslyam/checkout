@@ -148,7 +148,7 @@ export function usePayment() {
 
             if (!response.ok) {
                 // Throw enhanced Asaas error from backend
-                const error = new Error(data.error || 'Erro ao gerar PIX')
+                const error = new Error(data.message || data.error || 'Erro ao gerar PIX')
                     ; (error as any).code = data.code
                 throw error
             }
@@ -156,7 +156,7 @@ export function usePayment() {
             // Set payment result in context (no QR code needed)
             setPaymentResult({
                 paymentId: data.payment.id,
-                pixQrCode: '', // Not used for mobile
+                pixQrCode: data.payment.pixQrCode?.encodedImage || '', // Base64 image from Asaas
                 pixPayload: data.payment.pixQrCode?.payload || '',
                 pixExpiresAt: data.payment.pixQrCode?.expirationDate || '',
             })
@@ -275,7 +275,8 @@ export function usePayment() {
             }
 
             if (data.type === 'INTERNAL_ERROR' || response.status >= 500) {
-                showToast('Sistema temporariamente instável. Tente em instantes.', 'error')
+                const msg = data.message || 'Sistema temporariamente instável. Tente em instantes.'
+                showToast(msg, 'error')
                 return
             }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, Suspense, type ReactNode } from 'react'
+import { createContext, useContext, useReducer, useEffect, useState, useCallback, useMemo, Suspense, useRef, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { validateStep1, validateStep2, validateStep3, type ValidationErrors, type ValidationResult } from '@/lib/validation'
 
@@ -215,10 +215,12 @@ function CheckoutUrlHandler({
     dispatch: React.Dispatch<CheckoutAction>,
     setIsHydrated: (value: boolean) => void
 }) {
+    const hasHydrated = useRef(false)
     const searchParams = useSearchParams()
 
     useEffect(() => {
         if (typeof window === 'undefined') return
+        if (hasHydrated.current) return
 
         const urlBike = searchParams.get('bike')
         const urlColor = searchParams.get('cor')
@@ -259,6 +261,7 @@ function CheckoutUrlHandler({
             sessionStorage.removeItem(STORAGE_KEY)
         } finally {
             // Always mark as hydrated after attempting to load
+            hasHydrated.current = true
             setIsHydrated(true)
         }
     }, [searchParams, dispatch, setIsHydrated])

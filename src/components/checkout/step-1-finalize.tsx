@@ -89,18 +89,21 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
 
             {/* Product Image */}
             <div className="bg-white rounded-[20px] p-4 mb-4 w-[260px] h-[116px] flex items-center justify-center overflow-hidden">
-                <Image
-                    src={state.productImage}
-                    alt={state.productName}
-                    width={260}
-                    height={116}
-                    className="object-contain"
-                    priority
-                />
+                {state.productImage && (
+                    <Image
+                        src={state.productImage}
+                        alt={state.productName}
+                        width={260}
+                        height={116}
+                        className="object-contain"
+                        priority
+                        style={{ width: 'auto', height: 'auto' }}
+                    />
+                )}
             </div>
 
             {/* Product Name */}
-            <h2 className="font-audiowide text-[27.5px] text-[#1E90FF] tracking-wide uppercase mb-1 w-[260px] whitespace-nowrap text-center">
+            <h2 className="font-audiowide text-[27.5px] text-[#1E90FF] tracking-wide uppercase mb-1 w-[260px] text-center leading-tight">
                 {state.productName}
             </h2>
 
@@ -117,10 +120,9 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                 </div>
             </div>
 
-            {/* Price */}
-            <div className="mb-10 w-[260px] text-center">
-                <div className="text-[41px] font-bold leading-none mb-1">{formatCurrency(state.productPrice)}</div>
-                <div className="text-[#1E90FF] font-bold text-[15px]">Até {maxInstallment.installment}x de {formatCurrency(maxInstallment.value)}</div>
+            {/* Trust Section */}
+            <div className="mb-6 w-[260px] flex flex-col items-start gap-1">
+                <span className="text-[#1E90FF] font-bold text-[13px]">Garantia Ambtus de 1 ano</span>
             </div>
 
             {/* Personal Data Form */}
@@ -145,12 +147,12 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <label className="text-[13px] font-regular">G-mail:</label>
+                    <label className="text-[13px] font-regular">E-mail:</label>
                     <input
                         {...register("email", {
                             onChange: (e) => updateData('email', e.target.value)
                         })}
-                        placeholder="Ex: seugmail@gmail.com"
+                        placeholder="Ex: meuemail@email.com"
                         className={cn(
                             "w-full h-[53px] bg-[#191919] border-[1px] rounded-[20px] px-6 text-[#FFFFFF] text-[15px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
                             errors.email ? "!border-[#FF1E1E]" : "!border-[#383838]"
