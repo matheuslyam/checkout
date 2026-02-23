@@ -59,13 +59,17 @@ export function calculateReverseTotal(targetNetCents: number, installments: numb
 /**
  * Calculate full installment options list
  */
-export function getInstallmentOptions(productPriceCents: number, shippingCents: number) {
+export function getInstallmentOptions(productPriceCents: number, shippingCents: number, isTestProduct: boolean = false) {
     const targetNet = productPriceCents + shippingCents
     const options = []
 
     for (let i = 1; i <= MAX_INSTALLMENTS; i++) {
-        const totalCents = calculateReverseTotal(targetNet, i)
-        const installmentValueCents = Math.round(totalCents / i)
+        // If it's the test product, bypass all fees and anticipation
+        const totalCents = isTestProduct ? targetNet : calculateReverseTotal(targetNet, i)
+        // Ensure rounding for installment value so it's consistent
+        const installmentValueCents = isTestProduct
+            ? Math.round(targetNet / i) // Technically 100/i might have remainders, but Asaas handles precision natively
+            : Math.round(totalCents / i)
 
         // Calculate the actual fee amount for display/internal use
         const feeAmountCents = totalCents - targetNet

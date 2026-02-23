@@ -50,14 +50,16 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
     // Calculate Installment Options (Financial Engine)
     const maxInstallment = useMemo(() => {
         const shippingCents = Math.round((state.frete || 0) * 100)
-        const options = getInstallmentOptions(state.productPrice, shippingCents)
+        const isTestProduct = state.productId === 'teste-1'
+        const options = getInstallmentOptions(state.productPrice, shippingCents, isTestProduct)
         return options[options.length - 1]
-    }, [state.productPrice, state.frete])
+    }, [state.productPrice, state.frete, state.productId])
 
     const installmentOptions = useMemo(() => {
         const shippingCents = Math.round((state.frete || 0) * 100)
-        return getInstallmentOptions(state.productPrice, shippingCents)
-    }, [state.productPrice, state.frete])
+        const isTestProduct = state.productId === 'teste-1'
+        return getInstallmentOptions(state.productPrice, shippingCents, isTestProduct)
+    }, [state.productPrice, state.frete, state.productId])
 
     // ============================================
     // 🕒 Timer Logic

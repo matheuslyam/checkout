@@ -279,8 +279,10 @@ export async function POST(request: NextRequest) {
             // Convert to cents for accurate calculation
             const totalCents = Math.round(priceBreakdown.total * 100)
 
-            // Calculate with Fees and Anticipation
-            const totalWithFeesCents = calculateReverseTotal(totalCents, installments)
+            // Bypass fees if it's the test product
+            const totalWithFeesCents = data.productId === 'teste-1'
+                ? totalCents
+                : calculateReverseTotal(totalCents, installments)
 
             // Convert back to Float for Asaas
             finalValueToCharge = totalWithFeesCents / 100

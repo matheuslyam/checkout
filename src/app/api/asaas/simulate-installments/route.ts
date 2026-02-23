@@ -43,7 +43,8 @@ async function handleRequest(request: NextRequest) {
         const baseTotalCents = product.price + shippingCents // Both in cents
 
         // Generate installment options with reverse calculation via shared lib
-        const installments = getInstallmentOptions(product.price, shippingCents)
+        const isTestProduct = productId === 'teste-1'
+        const installments = getInstallmentOptions(product.price, shippingCents, isTestProduct)
 
         return NextResponse.json({
             productId,
