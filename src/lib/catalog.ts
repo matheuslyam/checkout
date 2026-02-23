@@ -128,6 +128,22 @@ export const BIKES_CATALOG: Record<string, Product> = {
         description: 'Potência 1000W, Bateria Lítio 48V 15AH, Banco Duplo, Sistema de freio Dianteiro/Traseiro',
         maxInstallments: 21
     },
+    'sk10': {
+        id: 'sk10',
+        name: 'AMBTUS SK10',
+        price: 600000, // R$ 6.000,00
+        image: '/catalog2/Sk.jpeg',
+        description: 'Potência 1000W',
+        maxInstallments: 21
+    },
+    'sk8': {
+        id: 'sk8',
+        name: 'AMBTUS SK8',
+        price: 400000, // R$ 4.000,00
+        image: '/catalog2/Sk.jpeg',
+        description: 'Potência 500W',
+        maxInstallments: 21
+    },
     'teste-1': {
         id: 'teste-1',
         name: 'TESTE R$1,00',
