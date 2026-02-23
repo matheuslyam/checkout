@@ -40,6 +40,7 @@ export const CardPaymentSchema = z.object({
         postalCode: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos'),
         addressNumber: z.string().min(1, 'Número do endereço é obrigatório'),
         phone: z.string().optional(),
+        mobilePhone: z.string().optional(),
     }),
     description: z.string().optional(),
     externalReference: z.string().optional(),

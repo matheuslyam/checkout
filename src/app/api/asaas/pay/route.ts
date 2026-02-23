@@ -378,6 +378,7 @@ export async function POST(request: NextRequest) {
                     cpfCnpj: data.creditCard.holderCpfCnpj,
                     postalCode: data.creditCard.holderPostalCode,
                     addressNumber: data.creditCard.holderAddressNumber,
+                    phone: data.customer.phone, // Assuming we fall back to customer phone 
                 },
                 description: `${priceBreakdown.productName} + Frete + Taxas`,
                 externalReference,

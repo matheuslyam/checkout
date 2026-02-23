@@ -150,7 +150,7 @@ export const BIKES_CATALOG: Record<string, Product> = {
         price: 100, // R$ 1,00
         image: '/catalog2/Catalogo Ambtus Serra-_page-0005.jpg', // Using generic image
         description: 'Produto de Teste - Valor R$ 1,00',
-        maxInstallments: 12 // Limit installments for test
+        maxInstallments: 21 // Limit installments for test
     }
 }
 
