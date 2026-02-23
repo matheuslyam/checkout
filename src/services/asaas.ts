@@ -159,7 +159,7 @@ export class AsaasService {
                     if (process.env.NODE_ENV !== 'production') {
                         console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode, desc: asaasErrorDesc })
                     } else {
-                        console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode })
+                        console.error('❌ [Asaas API Error]:', { status, code: asaasErrorCode, desc: asaasErrorDesc, fullData: data })
                     }
 
                     // Enhance error object with friendly message
