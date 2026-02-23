@@ -420,14 +420,26 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         // Handle known Asaas User Errors
         const errCode = error.code as string | undefined
-        if (errCode && AsaasErrorMap[errCode]) {
-            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: ASAAS_ERROR_${errCode}`)
+
+        // Use normalized code for the map, or rely on Asaas.ts friendlyMessage
+        const normalizedCode = errCode?.toUpperCase()
+        if (normalizedCode && AsaasErrorMap[normalizedCode]) {
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: ASAAS_ERROR_${normalizedCode}`)
             return NextResponse.json(
                 {
                     type: 'USER_ERROR',
-                    message: AsaasErrorMap[errCode],
-                    code: errCode
+                    message: AsaasErrorMap[normalizedCode],
+                    code: normalizedCode
                 },
+                { status: 400 }
+            )
+        }
+
+        // Pass-through 400 errors formatted by Asaas Service
+        if (error.status === 400 && error.message) {
+            console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: ASAAS_ERROR_${errCode}`)
+            return NextResponse.json(
+                { type: 'USER_ERROR', message: error.message, code: errCode },
                 { status: 400 }
             )
         }
