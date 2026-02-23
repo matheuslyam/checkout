@@ -36,14 +36,14 @@ async function handleRequest(request: NextRequest) {
         }
 
         // Calculate shipping
-        const shippingBrl = calculateShipping(uf)
+        const isTestProduct = productId === 'teste-1'
+        const shippingBrl = isTestProduct ? 0 : calculateShipping(uf)
         const shippingCents = Math.round(shippingBrl * 100)
 
         // Base total (Product + Shipping)
         const baseTotalCents = product.price + shippingCents // Both in cents
 
         // Generate installment options with reverse calculation via shared lib
-        const isTestProduct = productId === 'teste-1'
         const installments = getInstallmentOptions(product.price, shippingCents, isTestProduct)
 
         return NextResponse.json({

@@ -107,7 +107,8 @@ function calculateTotal(productId: string, uf: string): PriceBreakdown | null {
     const product = BIKES_CATALOG[productId]
     if (!product) return null
 
-    const shippingBrl = calculateShipping(uf)
+    const isTestProduct = productId === 'teste-1'
+    const shippingBrl = isTestProduct ? 0 : calculateShipping(uf)
     // Shipping is BRL (e.g. 150.00), Product is Cents (e.g. 1264000)
     // Normalize to Cents
     const shippingCents = Math.round(shippingBrl * 100)
