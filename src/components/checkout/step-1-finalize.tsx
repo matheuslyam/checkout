@@ -14,6 +14,7 @@ import { getInstallmentOptions } from "@/lib/financial"
 // Schema definition
 const formSchema = z.object({
     name: z.string().min(2, { message: "O nome é obrigatório" }),
+    cpf: z.string().min(11, { message: "CPF inválido." }).refine(val => val.replace(/\D/g, '').length >= 11, { message: "CPF inválido." }),
     email: z.string().email({ message: "Digite uma informação válida." }),
     phone: z.string().min(10, { message: "Digite uma informação válida." }),
 })
@@ -37,6 +38,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: state.nome,
+            cpf: state.cpf,
             email: state.email,
             phone: state.telefone || '',
         }
@@ -44,14 +46,15 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
 
     // Update form when context state hydrates (e.g. from session storage)
     useEffect(() => {
-        if (state.nome || state.email || state.telefone) {
+        if (state.nome || state.email || state.telefone || state.cpf) {
             reset({
                 name: state.nome,
+                cpf: state.cpf,
                 email: state.email,
                 phone: state.telefone || '',
             })
         }
-    }, [state.nome, state.email, state.telefone, reset])
+    }, [state.nome, state.email, state.telefone, state.cpf, reset])
 
     // Sync state updates
     // Sync state updates
@@ -59,6 +62,7 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
         // Data is already synced via onChange handlers
         // But to be safe (e.g. autofill without event), we can update again
         updateData('nome', data.name)
+        updateData('cpf', data.cpf)
         updateData('email', data.email)
         updateData('telefone', data.phone)
 
@@ -143,6 +147,32 @@ export function Step1Finalize({ onNext }: Step1FinalizeProps) {
                     />
                     {errors.name && (
                         <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.name.message}</span>
+                    )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-regular">CPF:</label>
+                    <input
+                        {...register("cpf", {
+                            onChange: (e) => {
+                                let v = e.target.value.replace(/\D/g, '')
+                                if (v.length > 11) v = v.slice(0, 11)
+                                if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
+                                else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3')
+                                else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2')
+                                updateData('cpf', v)
+                                setValue("cpf", v)
+                            }
+                        })}
+                        placeholder="Ex: 000.000.000-00"
+                        maxLength={14}
+                        className={cn(
+                            "w-full h-[53px] bg-[#191919] border-[1px] rounded-[20px] px-6 text-[#FFFFFF] text-[15px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                            errors.cpf ? "!border-[#FF1E1E]" : "!border-[#383838]"
+                        )}
+                    />
+                    {errors.cpf && (
+                        <span className="text-[#FF1E1E] text-[8px] text-right px-2">{errors.cpf.message}</span>
                     )}
                 </div>
 

@@ -4,14 +4,14 @@ import { BIKES_CATALOG } from '@/lib/catalog'
 import { calculateShipping } from '@/lib/shipping'
 import { getAsaasService } from '@/services/asaas'
 import { isValidCreditCard } from '@/lib/validation'
-import { calculateReverseTotal } from '@/lib/financial'
+import { calculateReverseTotal, calculateHybridTotal } from '@/lib/financial'
 
 // ============================================
 // Input Validation Schemas
 // ============================================
 
 const AddressSchema = z.object({
-    cep: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos'),
+    cep: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 8, 'CEP deve ter 8 dígitos'),
     endereco: z.string().min(5, 'Endereço é obrigatório'),
     numero: z.string().min(1, 'Número é obrigatório'),
     complemento: z.string().optional(),
@@ -24,8 +24,8 @@ const CreditCardInfoSchema = z.object({
     token: z.string().optional(),
     holderName: z.string().min(3, 'Nome do titular é obrigatório'),
     holderEmail: z.string().email('Email do titular inválido'),
-    holderCpfCnpj: z.string().regex(/^\d{11}$|^\d{14}$/, 'CPF/CNPJ inválido'),
-    holderPostalCode: z.string().regex(/^\d{8}$/, 'CEP deve ter 8 dígitos'),
+    holderCpfCnpj: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 11 || v.length === 14, 'CPF/CNPJ inválido'),
+    holderPostalCode: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 8, 'CEP deve ter 8 dígitos'),
     holderAddressNumber: z.string().min(1, 'Número é obrigatório'),
 
     // Raw data (if not tokenized)
@@ -46,7 +46,7 @@ const PaymentRequestSchema = z.object({
     customer: z.object({
         name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
         email: z.string().email('E-mail inválido'),
-        cpfCnpj: z.string().regex(/^\d{11}$|^\d{14}$/, 'CPF deve ter 11 dígitos'),
+        cpfCnpj: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 11 || v.length === 14, 'CPF/CNPJ deve ter 11 ou 14 dígitos'),
         phone: z.string().optional(),
     }),
 
@@ -54,11 +54,16 @@ const PaymentRequestSchema = z.object({
     address: AddressSchema,
 
     // Payment method
-    paymentMethod: z.enum(['PIX', 'CREDIT_CARD', 'BOLETO']),
+    paymentMethod: z.enum(['PIX', 'CREDIT_CARD', 'BOLETO', 'HYBRID']),
 
     // Credit card specific (optional)
     creditCard: CreditCardInfoSchema.optional(),
     installments: z.number().int().min(1).max(21).optional(),
+
+    // Hybrid specific
+    pixEntry: z.number().min(1000, 'Entrada PIX deve ser no mínimo R$ 1.000,00').optional(),
+    isHybridCard: z.boolean().optional(),
+    hybridId: z.string().optional(),
 
     // Optional: For security logging only (not used in calculation)
     debugTotal: z.number().optional(),
@@ -152,9 +157,17 @@ export async function POST(request: NextRequest) {
             API_URL: process.env.ASAAS_API_URL
         })
 
+        console.log("[BYPASS DEBUG]", {
+            ENV_TEST_CARD: process.env.NEXT_PUBLIC_ENABLE_TEST_CARD,
+            METHOD: body.paymentMethod,
+            RAW_CPF: body.customer?.cpfCnpj,
+            CLEAN_CPF: body.customer?.cpfCnpj?.replace(/\D/g, '')
+        })
+
+        const isTestMode = process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true' || process.env.NODE_ENV === 'development'
+
         // Detect and handle Test Card Bypass BEFORE strict schema validation
-        // Detect and handle Test Card Bypass BEFORE strict schema validation
-        if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true') {
+        if (isTestMode) {
             // BYPASS FOR CREDIT CARD
             if (
                 body.paymentMethod === 'CREDIT_CARD' &&
@@ -189,7 +202,7 @@ export async function POST(request: NextRequest) {
             // BYPASS FOR PIX
             if (
                 body.paymentMethod === 'PIX' &&
-                body.customer?.cpfCnpj === '12345678900'
+                body.customer?.cpfCnpj?.replace(/\D/g, '') === '12345678900'
             ) {
                 const product = BIKES_CATALOG[body.productId]
                 if (!product) return NextResponse.json({ type: 'USER_ERROR', message: 'Produto não encontrado.' }, { status: 404 })
@@ -208,28 +221,93 @@ export async function POST(request: NextRequest) {
                     success: true,
                     payment: {
                         id: mockPaymentId,
-                        status: 'PENDING', // PENDING allows the frontend to start polling (or we can return CONFIRMED immediately if we want to skip polling?)
-                        // If we return PENDING, the frontend will poll check-payment. We need to mock that too?
-                        // Actually, if we return CONFIRMED here, Step 3 might not expect it or usePayment handles it.
-                        // usePayment sets result and calls nextStep. It doesn't check status immediately unless we polling. 
-                        // But wait, for PIX we usually show QR Code.
-                        // If I return PENDING, usePayment receives it and shows toast.
-                        // Then it polls. I need simulating the webhook or polling response?
-                        // If I return CONFIRMED, usePayment will just go to success?
-                        // usePayment logic for PIX: setPaymentResult (id, qrCode). 
-                        // It DOES NOT automatically poll unless `startPolling` is called.
-                        // In `usePayment.ts`: `useEffect` monitors `paymentId` and `paymentStatus === 'PENDING'`.
-                        // So if I return PENDING, it starts polling.
-                        // Check-payment endpoint ALSO needs to support the mock ID.
-
+                        status: 'PENDING',
                         method: 'PIX',
                         value: total,
                         breakdown: { product: product.price / 100, shipping },
-                        pixQrCode: '00020126580014BR.GOV.BCB.PIX0136123e4567-e89b-12d3-a456-426614174000520400005303986540510.005802BR5913Ambtus Motors6008BRASILIA62070503***6304ABCD',
-                        pixPayload: '00020126580014BR.GOV.BCB.PIX0136123e4567-e89b-12d3-a456-426614174000520400005303986540510.005802BR5913Ambtus Motors6008BRASILIA62070503***6304ABCD'
+                        pixQrCode: {
+                            encodedImage: '',
+                            payload: '00020126580014BR.GOV.BCB.PIX0136123e4567-e89b-12d3-a456-426614174000520400005303986540510.005802BR5913Ambtus Motors6008BRASILIA62070503***6304ABCD',
+                            expirationDate: expiresAt.toISOString()
+                        }
                     },
                     customer: { id: 'cus_test_123' },
                     externalReference: `test-${body.productId}-${Date.now()}`,
+                })
+            }
+
+            // BYPASS FOR HYBRID
+            if (
+                body.paymentMethod === 'HYBRID' &&
+                !body.isHybridCard &&
+                body.customer?.cpfCnpj?.replace(/\D/g, '') === '12345678900'
+            ) {
+                const product = BIKES_CATALOG[body.productId]
+                if (!product) return NextResponse.json({ type: 'USER_ERROR', message: 'Produto não encontrado.' }, { status: 404 })
+
+                const shipping = calculateShipping(body.address?.uf || 'SP')
+                const total = (product.price / 100) + shipping
+                const mockPixId = `pay_pix_hyb_${Math.random().toString(36).substring(7)}`
+
+                const expiresAt = new Date()
+                expiresAt.setMinutes(expiresAt.getMinutes() + 15)
+
+                console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 200 | Payload: TEST_HYBRID_BYPASS_${mockPixId}`)
+
+                return NextResponse.json({
+                    success: true,
+                    payment: {
+                        id: mockPixId,
+                        status: 'PENDING',
+                        method: 'PIX',
+                        value: body.pixEntry,
+                        breakdown: { product: product.price / 100, shipping },
+                        pixQrCode: {
+                            encodedImage: '',
+                            payload: '00020126580014BR.GOV.BCB.PIX0136123e4567-e89b-12d3-a456-426614174000520400005303986540510.005802BR5913Ambtus Motors6008BRASILIA62070503***6304ABCD',
+                            expirationDate: expiresAt.toISOString()
+                        }
+                    },
+                    customer: { id: 'cus_test_123' },
+                    hybridId: `hyb_test_${Date.now()}`,
+                    externalReference: `test-hyb-${body.productId}-${Date.now()}`,
+                })
+            }
+
+            // BYPASS FOR HYBRID CARD (FASE 2) Ou CREDIT CARD Normal (com num 0000)
+            if (
+                (body.paymentMethod === 'CREDIT_CARD' || body.paymentMethod === 'HYBRID') &&
+                body.creditCard?.number === '0000000000000000'
+            ) {
+                const product = BIKES_CATALOG[body.productId]
+                if (!product) return NextResponse.json({ type: 'USER_ERROR', message: 'Produto não encontrado.' }, { status: 404 })
+
+                const mockPaymentId = `pay_card_mock_${Math.random().toString(36).substring(7)}`
+                const shipping = calculateShipping(body.address?.uf || 'SP')
+
+                let finalValue = (product.price / 100) + shipping;
+                if (body.paymentMethod === 'HYBRID' && body.isHybridCard && body.hybridId) {
+                    const { getHybridLog } = await import('@/lib/hybridLogger')
+                    const log = await getHybridLog(body.hybridId)
+                    if (log && log.pixValue) {
+                        finalValue -= log.pixValue;
+                    }
+                }
+
+                console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 200 | Payload: TEST_MOCK_CARD_APPROVED_${mockPaymentId}`)
+
+                return NextResponse.json({
+                    success: true,
+                    payment: {
+                        id: mockPaymentId,
+                        status: 'RECEIVED',
+                        method: 'CREDIT_CARD',
+                        value: finalValue,
+                        breakdown: { product: product.price / 100, shipping },
+                    },
+                    customer: { id: 'cus_test_123' },
+                    hybridId: body.hybridId,
+                    externalReference: `test-card-${body.productId}-${Date.now()}`,
                 })
             }
         }
@@ -238,6 +316,7 @@ export async function POST(request: NextRequest) {
 
         if (!parseResult.success) {
             console.log(`[CHECKOUT_FLOW] Step: SERVER | Status: 400 | Payload: INVALID_SCHEMA`)
+            console.error(`[ZOD ERRORS]`, JSON.stringify(parseResult.error.issues, null, 2))
             return NextResponse.json(
                 {
                     type: 'USER_ERROR',
@@ -249,6 +328,16 @@ export async function POST(request: NextRequest) {
         }
 
         const data: PaymentRequest = parseResult.data
+
+        // HYBRID Validation
+        if (data.paymentMethod === 'HYBRID') {
+            if (!data.pixEntry || data.pixEntry < 1000) {
+                return NextResponse.json(
+                    { type: 'USER_ERROR', message: 'Para pagamento híbrido, a entrada mínima via PIX é de R$ 1.000,00.' },
+                    { status: 400 }
+                )
+            }
+        }
 
         // ============================================
         // ZERO TRUST: Calculate price server-side
@@ -287,6 +376,27 @@ export async function POST(request: NextRequest) {
 
             // Convert back to Float for Asaas
             finalValueToCharge = totalWithFeesCents / 100
+        } else if (data.paymentMethod === 'HYBRID') {
+            const installments = data.installments || 1
+            const totalCents = Math.round(priceBreakdown.total * 100)
+
+            let pixEntryCents = Math.round((data.pixEntry || 0) * 100)
+
+            // FASE 2: Busca dinamicamente do DB o valor real da entrada que o usuário deu no Step 1
+            if (data.isHybridCard && data.hybridId) {
+                const { getHybridLog } = await import('@/lib/hybridLogger')
+                const log = await getHybridLog(data.hybridId)
+                if (log && log.pixValue) {
+                    pixEntryCents = Math.round(log.pixValue * 100)
+                }
+            }
+
+            // Bypass fees if it's the test product
+            const totalWithFeesCents = data.productId === 'teste-1'
+                ? totalCents - pixEntryCents
+                : calculateHybridTotal(totalCents, pixEntryCents, installments) // Assumes function is imported
+
+            finalValueToCharge = totalWithFeesCents / 100
         }
 
         // ============================================
@@ -313,8 +423,8 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Validate installments for credit card
-        if (data.paymentMethod === 'CREDIT_CARD') {
+        // Validate installments for credit card / hybrid
+        if (data.paymentMethod === 'CREDIT_CARD' || data.paymentMethod === 'HYBRID') {
             const installments = data.installments || 1
             const product = BIKES_CATALOG[data.productId]
 
@@ -353,6 +463,8 @@ export async function POST(request: NextRequest) {
         const externalReference = `${data.productId}-${Date.now()}`
 
         let paymentResult
+        let hybridEntryId = null
+        const { saveHybridLog } = await import('@/lib/hybridLogger')
 
         if (data.paymentMethod === 'PIX') {
             paymentResult = await asaas.createPixPayment({
@@ -362,6 +474,71 @@ export async function POST(request: NextRequest) {
                 externalReference,
                 dueDate: dueDateStr,
             })
+        } else if (data.paymentMethod === 'HYBRID') {
+            if (data.isHybridCard && data.creditCard && data.hybridId) {
+                // HYBRID Phase 2: Create Card Payment for remaining balance
+                paymentResult = await asaas.createCardPayment({
+                    customerId: customer.id,
+                    value: finalValueToCharge,
+                    installmentCount: data.installments || 1,
+                    creditCardToken: data.creditCard.token,
+                    creditCard: data.creditCard.number ? {
+                        holderName: data.creditCard.holderName,
+                        number: data.creditCard.number,
+                        expiryMonth: data.creditCard.expiryMonth || '',
+                        expiryYear: data.creditCard.expiryYear || '',
+                        ccv: data.creditCard.ccv || '',
+                    } : undefined,
+                    creditCardHolderInfo: {
+                        name: data.creditCard.holderName,
+                        email: data.creditCard.holderEmail,
+                        cpfCnpj: data.creditCard.holderCpfCnpj,
+                        postalCode: data.creditCard.holderPostalCode,
+                        addressNumber: data.creditCard.holderAddressNumber,
+                        phone: data.customer.phone,
+                    },
+                    description: `Cartão Resíduo Híbrido: ${priceBreakdown.productName}`,
+                    externalReference: `${externalReference}-CARD-${data.hybridId}`,
+                    dueDate: dueDateStr,
+                })
+
+                // Update Log
+                const { updateHybridLogStatus } = await import('@/lib/hybridLogger')
+                await updateHybridLogStatus(data.hybridId, {
+                    cardPaymentId: paymentResult.id,
+                    cardStatus: paymentResult.status
+                })
+                hybridEntryId = data.hybridId
+
+            } else {
+                // HYBRID Phase 1: Create PIX Entry
+                paymentResult = await asaas.createPixPayment({
+                    customerId: customer.id,
+                    value: data.pixEntry || 0,
+                    description: `Entrada PIX: ${priceBreakdown.productName}`,
+                    externalReference: `${externalReference}-PIX`,
+                    dueDate: dueDateStr,
+                })
+
+                hybridEntryId = `hyb_${Math.random().toString(36).substring(2, 11)}`
+                const userAgent = request.headers.get('user-agent') || 'unknown'
+
+                await saveHybridLog({
+                    hybridId: hybridEntryId,
+                    customerId: customer.id,
+                    pixPaymentId: paymentResult.id,
+                    pixStatus: paymentResult.status,
+                    pixValue: data.pixEntry || 0,
+                    cardPaymentId: null,
+                    cardStatus: null,
+                    cardValue: finalValueToCharge,
+                    userAgent,
+                    createdAt: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Valid for 24h
+                })
+
+                console.log(`[CHECKOUT_FLOW] HYBRID Log Saved: ${hybridEntryId}`)
+            }
         } else if (data.paymentMethod === 'CREDIT_CARD' && data.creditCard) {
             paymentResult = await asaas.createCardPayment({
                 customerId: customer.id,
@@ -413,6 +590,8 @@ export async function POST(request: NextRequest) {
                 },
                 // PIX specific
                 pixQrCode: 'pixQrCode' in paymentResult ? paymentResult.pixQrCode : undefined,
+                // Hybrid specific
+                hybridId: hybridEntryId,
             },
             customer: {
                 id: customer.id,

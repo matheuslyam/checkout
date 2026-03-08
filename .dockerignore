@@ -15,6 +15,10 @@ out
 .env.local
 .env.*.local
 
+# Local Data & Scripts
+.bin
+data
+
 # IDE
 .vscode
 .idea

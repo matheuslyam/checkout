@@ -141,7 +141,8 @@ export const isValidCreditCard = (value: string) => {
 
 
     // Check for test card
-    if (cleanValue === '0000000000000000' && process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true') return true
+    const isTestMode = process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true' || process.env.NODE_ENV === 'development'
+    if (cleanValue === '0000000000000000' && isTestMode) return true
 
     // Check for common test patterns (like all zeros)
     if (/^(\d)\1+$/.test(cleanValue)) return false
