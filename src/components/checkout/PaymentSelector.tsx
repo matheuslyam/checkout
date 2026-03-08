@@ -1,7 +1,7 @@
 import { Smartphone, Check, CreditCard } from "lucide-react"
 
 interface PaymentSelectorProps {
-    method: 'pix' | 'cartao' | 'boleto' | null | undefined
+    method: 'pix' | 'cartao' | 'boleto' | 'hybrid' | null | undefined
     onSelect: (method: 'pix' | 'cartao') => void
     frete: number
 }
