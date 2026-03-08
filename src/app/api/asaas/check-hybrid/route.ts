@@ -4,8 +4,7 @@ import { getAsaasService } from '@/services/asaas'
 
 // This endpoint is polled by the frontend after a PIX in an HYBRID flow
 export async function GET(
-    request: NextRequest,
-    { params }: { params: { id: string } }
+    request: NextRequest
 ) {
     const hybridId = request.nextUrl.searchParams.get('id')
 
