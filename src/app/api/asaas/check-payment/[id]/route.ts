@@ -13,6 +13,9 @@ const FAILED_STATUSES = ['REFUNDED', 'REFUND_REQUESTED', 'CHARGEBACK_REQUESTED',
 // GET Handler - Check Payment Status
 // ============================================
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -27,10 +30,42 @@ export async function GET(
             )
         }
 
-        // MOCK PAYMENT STATUS (Bypass)
-        if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true' && (id.startsWith('pay_') || id.startsWith('pay_pix_'))) {
+        // 1. CHECA PRIMEIRO O BANCO DE DADOS LOCAL (HYBRID MOCK SIMULATOR)
+        const { getLogByPixId } = await import('@/lib/hybridLogger')
+        const localLog = await getLogByPixId(id)
+
+        console.log(`[DB TRACE] getLogByPixId for [${id}] returned:`, localLog ? `Status: ${localLog.pixStatus} | hybridId: ${localLog.hybridId}` : 'NULL')
+
+        if (localLog) {
+            console.log(`[Polling] Local DB Match Found for ${id}: ${localLog.pixStatus}`)
+
+            // Se o nosso script simulador ja alterou para RECEIVED/CONFIRMED
+            if (SUCCESS_STATUSES.includes(localLog.pixStatus)) {
+                return NextResponse.json({
+                    paymentId: id,
+                    status: 'CONFIRMED',
+                    rawStatus: localLog.pixStatus,
+                    value: localLog.pixValue,
+                    billingType: 'PIX',
+                })
+            }
+
+            // Se ainda é PENDING no DB local e é um Mock de Teste, mantém PENDENTE para esperar o Simulador
+            if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true' && id.startsWith('pay_pix_hyb_')) {
+                return NextResponse.json({
+                    paymentId: id,
+                    status: 'PENDING',
+                    rawStatus: 'PENDING',
+                    value: localLog.pixValue,
+                    billingType: 'PIX',
+                })
+            }
+        }
+
+        // 2. MOCK PAYMENT STATUS (Bypass para PIX Padrão Simples, caso não seja Híbrido)
+        if (process.env.NEXT_PUBLIC_ENABLE_TEST_CARD === 'true' && !localLog && (id.startsWith('pay_') || id.startsWith('pay_pix_'))) {
             // Simulate a short delay or return CONFIRMED immediately
-            console.log(`[Polling] Mock Payment ${id} status: CONFIRMED`)
+            console.log(`[Polling] Mock Default Payment ${id} status: CONFIRMED`)
             return NextResponse.json({
                 paymentId: id,
                 status: 'CONFIRMED',

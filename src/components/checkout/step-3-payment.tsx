@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useCheckout } from "@/store/CheckoutContext"
 import { usePayment } from "@/hooks/usePayment"
-// import { isValidCreditCard, isValidCPF } from "@/lib/validation" // Not used directly anymore, relying on Zod
+import { useHybridRecovery } from "@/hooks/useHybridRecovery"
 import { Loader2, ChevronDown, ChevronUp, Copy, Check, Clock, AlertCircle } from "lucide-react"
-import { getInstallmentOptions } from "@/lib/financial"
+import { getInstallmentOptions, calculateHybridTotal, getHybridInstallmentOptions } from "@/lib/financial"
 
 // Schema definition for Card
 const cardSchema = z.object({
@@ -26,12 +26,24 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
     const { state, updateData, setPaymentResult, setPaymentStatus, goToStep } = useCheckout()
 
     // INTEGRATION: Use the real hook for PIX and Card logic
-    const { handleGeneratePix, isGeneratingPix, handleCardPayment, isProcessingCard } = usePayment()
+    const { handleGeneratePix, handleGenerateHybridPix, isGeneratingPix, isGeneratingHybridPix, handleCardPayment, isProcessingCard } = usePayment()
 
     // Local state for UI feedback
     const [copied, setCopied] = useState(false)
     const [timeLeft, setTimeLeft] = useState(0)
     const [isInstallmentsOpen, setIsInstallmentsOpen] = useState(false)
+
+    // Hybrid UI state
+    const [pixEntryValue, setPixEntryValue] = useState<number>(1000)
+    const [isPollingHybrid, setIsPollingHybrid] = useState(false)
+
+    // Apply the rescue hook
+    useHybridRecovery(
+        state.hybridId,
+        state.hybridPixStatus,
+        state.paymentStatus,
+        typeof window !== 'undefined' ? window.location.href : ''
+    )
 
     // Form for Card
     const {
@@ -58,8 +70,16 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
     const installmentOptions = useMemo(() => {
         const shippingCents = Math.round((state.frete || 0) * 100)
         const isTestProduct = state.productId === 'teste-1'
+        const totalCents = state.productPrice + shippingCents
+
+        if (state.metodoPagamento === 'hybrid' || state.hybridId) {
+            // For hybrid, we use the pure PIX entry (already in reais) to deduct
+            const pixEntryCents = Math.round(pixEntryValue * 100)
+            return getHybridInstallmentOptions(state.productPrice, shippingCents, pixEntryCents, isTestProduct)
+        }
+
         return getInstallmentOptions(state.productPrice, shippingCents, isTestProduct)
-    }, [state.productPrice, state.frete, state.productId])
+    }, [state.productPrice, state.frete, state.productId, state.metodoPagamento, state.hybridId, pixEntryValue])
 
     // ============================================
     // 🕒 Timer Logic
@@ -92,49 +112,18 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
         return `${m}:${s}`
     }
 
-    // ============================================
-    // 🔄 Polling Logic
-    // ============================================
-    useEffect(() => {
-        // Only pool if we have a payment ID, a payload (meaning PIX generated), and it's not confirmed yet
-        if (!state.paymentId || !state.pixPayload || state.paymentStatus === 'CONFIRMED' || timeLeft === 0) return
-
-        const checkStatus = async () => {
-            try {
-                // Ensure we handle the case where fetching might fail gracefully
-                const res = await fetch(`/api/asaas/check-payment?id=${state.paymentId}`)
-                if (!res.ok) return // Silently fail/retry next tick
-
-                const data = await res.json()
-
-                if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
-                    console.log("✅ Payment Confirmed via Polling!")
-                    setPaymentStatus('CONFIRMED')
-
-                    // State Purge (session storage)
-                    sessionStorage.removeItem('checkout_state_v2')
-
-                    // Transition to Success
-                    goToStep(4)
-                }
-            } catch (e) {
-                console.error("Polling error (silent):", e)
-            }
-        }
-
-        const interval = setInterval(checkStatus, 7000) // 7 seconds
-        return () => clearInterval(interval)
-    }, [state.paymentId, state.pixPayload, state.paymentStatus, timeLeft, setPaymentStatus, goToStep])
+    // Polling logic is globally handled by `usePayment.ts` to prevent duplicate network requests
+    // and correctly bypass strict React unmount behaviors triggered by `timeLeft` changes.
 
 
     // Sync accordion state with context method
     const selectedMethod = state.metodoPagamento
 
-    const handleMethodSelect = (method: 'pix' | 'cartao') => {
+    const handleMethodSelect = (method: 'pix' | 'cartao' | 'hybrid') => {
         if (selectedMethod === method) {
-            updateData('metodoPagamento', null)
+            updateData('metodoPagamento', null as any)
         } else {
-            updateData('metodoPagamento', method)
+            updateData('metodoPagamento', method as any)
         }
     }
 
@@ -166,6 +155,11 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
         updateData('pixPayload', '')
         updateData('pixExpiresAt', '')
     }
+
+    // Hybrid polling logic is handled by `usePayment.ts`
+
+    // Constants for Hybrid Slider
+    const MIN_PIX_ENTRY = 1000
 
     return (
         <div className="w-fit bg-[#212121] rounded-[20px] p-[45px] pt-[20px] pb-[50px] mx-auto text-white flex flex-col items-center shadow-2xl">
@@ -394,6 +388,282 @@ export function Step3Payment({ onBack }: { onBack: () => void }) {
                                     {isProcessingCard ? <Loader2 className="animate-spin" /> : "Finalizar Pagamento Seguro"}
                                 </Button>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* --- HYBRID (PIX + CARTÃO) ACCORDION --- */}
+                <div
+                    className={cn(
+                        "rounded-[20px] bg-[#191919] transition-all duration-300 border-[1px] relative",
+                        selectedMethod === 'hybrid' ? "!border-[#1E90FF] overflow-visible" : "!border-[#383838] overflow-hidden"
+                    )}
+                >
+                    {/* Header */}
+                    <div
+                        onClick={() => handleMethodSelect('hybrid')}
+                        className="p-4 flex items-center justify-between cursor-pointer"
+                    >
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[15px] font-bold text-[#FFC107]">Pix + Cartão</span>
+                                <span className="text-[8px] text-[#585858]">Pague a entrada no Pix e parcele o resto.</span>
+                            </div>
+                            {/* Card Flags */}
+                            <div className="flex gap-2 mt-2">
+                                <Image src="/images/pix.png" alt="Pix" width={30} height={15} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
+                                <Image src="/images/payment-flags.png" alt="Bandeiras" width={80} height={20} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
+                            </div>
+                        </div>
+                        {selectedMethod === 'hybrid' ? <ChevronUp className="w-4 h-4 text-[#FFC107]" /> : <ChevronDown className="w-4 h-4 text-white" />}
+                    </div>
+
+                    {/* Expanded Content */}
+                    {selectedMethod === 'hybrid' && (
+                        <div className="px-4 pb-6 pt-0 border-t !border-[#383838]/0">
+
+                            {/* Hybrid PIX Generation Phase */}
+                            {(!state.hybridId || state.hybridPixStatus === 'AWAITING_PIX') && (
+                                <div className="flex flex-col gap-4 animate-in fade-in zoom-in duration-300">
+                                    <div className="flex flex-col gap-2 bg-[#121212] p-4 rounded-[15px] border-[1px] !border-[#383838]">
+                                        <p className="text-[12px] text-white font-bold text-center">Qual valor de entrada no Pix?</p>
+                                        <p className="text-[9px] text-[#585858] text-center mb-2">Entrada mínima de R$ 1.000,00</p>
+
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] text-white">Valor:</span>
+                                            <span className="text-[14px] font-bold text-[#1E90FF]">{formatCurrency(pixEntryValue)}</span>
+                                        </div>
+
+                                        <input
+                                            type="range"
+                                            min={MIN_PIX_ENTRY}
+                                            max={Math.floor((state.productPrice + (state.frete || 0) * 100) / 100) - 100}
+                                            step={100}
+                                            value={pixEntryValue}
+                                            onChange={(e) => setPixEntryValue(Number(e.target.value))}
+                                            className="w-full h-1 bg-[#383838] rounded-lg appearance-none cursor-pointer accent-[#1E90FF]"
+                                            disabled={!!state.hybridId}
+                                        />
+                                    </div>
+
+                                    {!state.hybridId ? (
+                                        // Not Generated Yet
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] font-regular text-white">CPF do Pagador do PIX</label>
+                                                <input
+                                                    placeholder="123.456.789-00"
+                                                    className="w-full h-[40px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]"
+                                                    value={state.cpf}
+                                                    onChange={(e) => updateData('cpf', e.target.value)}
+                                                />
+                                            </div>
+                                            <Button
+                                                onClick={() => handleGenerateHybridPix(pixEntryValue)}
+                                                disabled={isGeneratingHybridPix || !state.cpf || state.cpf.replace(/\D/g, '').length < 11}
+                                                className="w-full h-[40px] mt-2 rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-[12px] hover:opacity-90 transition-opacity border-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isGeneratingHybridPix ? <Loader2 className="animate-spin" /> : "Gerar Entrada Pix"}
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        // Generated, Awaiting Payment
+                                        <div className="flex flex-col gap-3 items-center">
+                                            {timeLeft > 0 ? (
+                                                <>
+                                                    <p className="text-[10px] text-[#FFC107] font-bold text-center">Pix da Entrada Gerado!</p>
+                                                    <div className="relative w-full">
+                                                        <textarea
+                                                            readOnly
+                                                            value={state.pixPayload}
+                                                            className="w-full h-[50px] bg-[#121212] border-[1px] !border-[#383838] rounded-[15px] p-2 text-[#585858] text-[9px] focus:outline-none focus:!border-[#1E90FF] resize-none overflow-hidden"
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        onClick={onCopyPix}
+                                                        className={cn(
+                                                            "w-full h-[36px] rounded-[20px] transition-colors border-none font-bold text-[12px]",
+                                                            copied ? "bg-[#32CD32] text-black hover:bg-[#2db82d]" : "bg-[#1E90FF] text-white hover:bg-[#045CB1]"
+                                                        )}
+                                                    >
+                                                        {copied ? "Copiado!" : "Copiar Pix Copia e Cola"}
+                                                    </Button>
+
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        {isPollingHybrid ? <Loader2 className="w-3 h-3 animate-spin text-[#1E90FF]" /> : <div className="w-2 h-2 rounded-full bg-[#1E90FF] animate-pulse" />}
+                                                        <span className="text-[9px] text-white">Aguardando pagamento do PIX...</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 text-center mt-2">
+                                                    <AlertCircle className="w-5 h-5 text-[#FF1E1E]" />
+                                                    <p className="text-[10px] font-bold text-white">Código PIX Expirado</p>
+                                                    <Button
+                                                        onClick={() => updateData('hybridId', null)}
+                                                        className="w-full h-[36px] rounded-[20px] bg-[#1E90FF] text-white font-bold text-[12px] border-none"
+                                                    >
+                                                        Gerar Nova Entrada
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Hybrid Card Generation Phase */}
+                            {state.hybridId && state.hybridPixStatus === 'PIX_PAID_AWAITING_CARD' && (
+                                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
+                                    <div className="bg-[#32CD32]/10 border-[1px] border-[#32CD32]/30 p-3 rounded-[15px] flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-[#32CD32] flex items-center justify-center flex-shrink-0">
+                                            <Check className="w-5 h-5 text-black" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-white font-bold">Entrada Confirmada!</p>
+                                            <p className="text-[9px] text-[#32CD32]">R$ {formatCurrency(pixEntryValue)} pago via PIX.</p>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-[11px] text-white font-bold text-center mt-2">Agora, preencha os dados do cartão para o restante:</p>
+
+                                    {/* Duplicate Card Form for Hybrid exactly like single card but using total recalculations automatically handled above */}
+                                    <div className="flex flex-col gap-1 mt-2">
+                                        <label className="text-[10px] font-regular text-white">Número do Cartão</label>
+                                        <input
+                                            placeholder="Ex: 0000 0000 0000 0000"
+                                            className={cn(
+                                                "w-full h-[40px] bg-[#121212] border-[1px] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                                                errors.number ? "!border-[#FF1E1E]" : "!border-[#383838]"
+                                            )}
+                                            {...register("number")}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-regular text-white">Nome Impresso</label>
+                                        <input
+                                            placeholder="Ex: Pedro da Silva"
+                                            className={cn(
+                                                "w-full h-[40px] bg-[#121212] border-[1px] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                                                errors.name ? "!border-[#FF1E1E]" : "!border-[#383838]"
+                                            )}
+                                            {...register("name")}
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="flex flex-col gap-1 w-1/2">
+                                            <label className="text-[10px] font-regular text-white">Validade</label>
+                                            <input
+                                                placeholder="01/02"
+                                                className={cn(
+                                                    "w-full h-[40px] bg-[#121212] border-[1px] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                                                    errors.expiry ? "!border-[#FF1E1E]" : "!border-[#383838]"
+                                                )}
+                                                {...register("expiry", {
+                                                    onChange: (e) => {
+                                                        let v = e.target.value.replace(/\D/g, '')
+                                                        if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2, 4)
+                                                        setValue("expiry", v)
+                                                    }
+                                                })}
+                                                maxLength={5}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1 w-1/2">
+                                            <label className="text-[10px] font-regular text-white">CVV</label>
+                                            <input
+                                                placeholder="123"
+                                                className={cn(
+                                                    "w-full h-[40px] bg-[#121212] border-[1px] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                                                    errors.cvv ? "!border-[#FF1E1E]" : "!border-[#383838]"
+                                                )}
+                                                {...register("cvv")}
+                                                maxLength={4}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-regular text-white">CPF do Titular</label>
+                                        <input
+                                            placeholder="000.000.000-00"
+                                            className={cn(
+                                                "w-full h-[40px] bg-[#121212] border-[1px] rounded-[20px] px-4 text-white text-[12px] placeholder:text-[#383838] focus:outline-none focus:!border-[#1E90FF]",
+                                                errors.cpf ? "!border-[#FF1E1E]" : "!border-[#383838]"
+                                            )}
+                                            {...register("cpf", {
+                                                onChange: (e) => {
+                                                    let v = e.target.value.replace(/\D/g, '')
+                                                    if (v.length > 11) v = v.slice(0, 11)
+                                                    if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
+                                                    else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3')
+                                                    else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2')
+                                                    setValue("cpf", v)
+                                                }
+                                            })}
+                                            maxLength={14}
+                                        />
+                                    </div>
+
+                                    {/* Installments specific to Hybrid are handled by the modified getHybridInstallmentOptions wrapper above */}
+                                    <div className="flex flex-col gap-1">
+                                        <div className="relative">
+                                            <div
+                                                onClick={() => setIsInstallmentsOpen(!isInstallmentsOpen)}
+                                                className={cn(
+                                                    "w-full h-[40px] bg-[#121212] border-[1px] rounded-[20px] px-4 flex items-center justify-between cursor-pointer group",
+                                                    isInstallmentsOpen ? "!border-[#1E90FF]" : "!border-[#383838]"
+                                                )}
+                                            >
+                                                <span className="text-[12px] text-white">
+                                                    {(() => {
+                                                        const selected = installmentOptions.find(o => o.installment === state.parcelas)
+                                                        return selected
+                                                            ? `${selected.installment}x de ${formatCurrency(selected.value / 100)}`
+                                                            : "Parcelamento do Restante"
+                                                    })()}
+                                                </span>
+                                                {isInstallmentsOpen ? <ChevronUp className="w-4 h-4 text-white" /> : <ChevronDown className="w-4 h-4 text-white" />}
+                                            </div>
+
+                                            {isInstallmentsOpen && (
+                                                <div className="absolute top-[45px] left-0 w-full max-h-[200px] bg-[#121212] border-[1px] !border-[#383838] rounded-[20px] overflow-hidden z-20 flex flex-col shadow-xl">
+                                                    <div className="overflow-y-auto custom-scrollbar p-1">
+                                                        {installmentOptions.map((option) => (
+                                                            <div
+                                                                key={option.installment}
+                                                                onClick={() => {
+                                                                    updateData('parcelas', option.installment)
+                                                                    setIsInstallmentsOpen(false)
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full py-2 px-3 rounded-[15px] cursor-pointer flex justify-between items-center group transition-colors mb-1 last:mb-0",
+                                                                    state.parcelas === option.installment ? "bg-[#1E90FF]" : "hover:bg-[#1E90FF]/20"
+                                                                )}
+                                                            >
+                                                                <span className={cn(
+                                                                    "text-[10px] transition-colors flex w-full justify-between",
+                                                                    state.parcelas === option.installment ? "text-white font-bold" : "text-white group-hover:text-[#1E90FF]"
+                                                                )}>
+                                                                    <span>{option.installment}x</span>
+                                                                    <span>{formatCurrency(option.value / 100)}</span>
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        onClick={handleSubmit(onCardSubmit)}
+                                        disabled={isProcessingCard}
+                                        className="w-full h-[40px] mt-2 rounded-[20px] bg-gradient-to-b from-[#1E90FF] to-[#045CB1] text-white font-bold text-[12px] hover:opacity-90 transition-opacity border-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isProcessingCard ? <Loader2 className="animate-spin" /> : "Finalizar Cartão Seguro"}
+                                    </Button>
+                                </div>
+                            )}
+
                         </div>
                     )}
                 </div>

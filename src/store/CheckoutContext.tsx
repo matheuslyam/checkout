@@ -15,7 +15,7 @@ import { validateStep1, validateStep2, validateStep3, type ValidationErrors, typ
 // ============================================
 // Types
 // ============================================
-export type MetodoPagamento = 'pix' | 'cartao' | 'boleto' | null
+export type MetodoPagamento = 'pix' | 'cartao' | 'boleto' | 'hybrid' | null
 
 export interface CheckoutState {
     // Navigation (1=Data, 2=Delivery, 3=Payment, 4=Success)
@@ -49,12 +49,16 @@ export interface CheckoutState {
     productOriginalPrice: number
     productColor: string
 
-    // Payment Result (from Asaas)
+    // Validation Result
     paymentId: string
     paymentStatus: 'PENDING' | 'CONFIRMED' | 'FAILED' | null
     pixQrCode: string      // Base64 encoded QR Code image
     pixPayload: string     // Copy-paste PIX code
     pixExpiresAt: string   // ISO date string
+
+    // Hybrid State
+    hybridId: string | null
+    hybridPixStatus: 'AWAITING_PIX' | 'PIX_PAID_AWAITING_CARD' | 'CONFIRMED' | 'FAILED' | null
 
     // Installments
     installmentOptions: Array<{
@@ -74,8 +78,9 @@ type CheckoutAction =
     | { type: 'PREV_STEP' }
     | { type: 'GO_TO_STEP'; payload: 1 | 2 | 3 | 4 }
     | { type: 'UPDATE_DATA'; payload: { key: keyof CheckoutState; value: CheckoutState[keyof CheckoutState] } }
-    | { type: 'SET_PAYMENT_RESULT'; payload: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string } }
+    | { type: 'SET_PAYMENT_RESULT'; payload: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string; hybridId?: string | null } }
     | { type: 'SET_PAYMENT_STATUS'; payload: 'PENDING' | 'CONFIRMED' | 'FAILED' }
+    | { type: 'UPDATE_HYBRID_STATUS'; payload: 'AWAITING_PIX' | 'PIX_PAID_AWAITING_CARD' | 'CONFIRMED' | 'FAILED' | null }
     | { type: 'SET_INSTALLMENT_OPTIONS'; payload: CheckoutState['installmentOptions'] }
     | { type: 'HYDRATE'; payload: Partial<CheckoutState> }
     | { type: 'RESET' }
@@ -112,6 +117,8 @@ const initialState: CheckoutState = {
     pixPayload: '',
     pixExpiresAt: '',
     frete: 0,
+    hybridId: null,
+    hybridPixStatus: null,
 }
 
 // ============================================
@@ -151,12 +158,20 @@ function checkoutReducer(state: CheckoutState, action: CheckoutAction): Checkout
                 pixPayload: action.payload.pixPayload,
                 pixExpiresAt: action.payload.pixExpiresAt,
                 paymentStatus: 'PENDING',
+                hybridId: action.payload.hybridId || null,
+                hybridPixStatus: action.payload.hybridId ? 'AWAITING_PIX' : null,
             }
 
         case 'SET_PAYMENT_STATUS':
             return {
                 ...state,
                 paymentStatus: action.payload,
+            }
+
+        case 'UPDATE_HYBRID_STATUS':
+            return {
+                ...state,
+                hybridPixStatus: (action as any).payload,
             }
 
         case 'SET_INSTALLMENT_OPTIONS':
@@ -190,9 +205,9 @@ interface CheckoutContextValue {
     prevStep: () => void
     goToStep: (step: 1 | 2 | 3 | 4) => void
     updateData: <K extends keyof CheckoutState>(key: K, value: CheckoutState[K]) => void
-    setPaymentResult: (data: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string }) => void
-    setInstallmentOptions: (options: CheckoutState['installmentOptions']) => void
+    setPaymentResult: (data: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string; hybridId?: string | null }) => void
     setPaymentStatus: (status: 'PENDING' | 'CONFIRMED' | 'FAILED') => void
+    setInstallmentOptions: (options: CheckoutState['installmentOptions']) => void
     validateCurrentStep: () => ValidationResult
     clearValidationErrors: () => void
     reset: () => void
@@ -367,7 +382,7 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
         dispatch({ type: 'UPDATE_DATA', payload: { key, value } })
     }, [])
 
-    const setPaymentResult = useCallback((data: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string }) => {
+    const setPaymentResult = useCallback((data: { paymentId: string; pixQrCode: string; pixPayload: string; pixExpiresAt: string; hybridId?: string | null }) => {
         dispatch({ type: 'SET_PAYMENT_RESULT', payload: data })
     }, [])
 

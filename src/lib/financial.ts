@@ -88,3 +88,67 @@ export function getInstallmentOptions(productPriceCents: number, shippingCents: 
 function formatCurrency(val: number) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
+
+/**
+ * Hybrid Calculate Reverse Total (SO 43.1)
+ * The fees (Intermediation + Anticipation) must ONLY apply to the remaining card balance. 
+ * PIX entry reduces the principal directly.
+ */
+export function calculateHybridTotal(targetNetCents: number, pixEntryCents: number, installments: number): number {
+    // 1. Deduct PIX entirely from the principal
+    const remainingNetCents = targetNetCents - pixEntryCents
+
+    if (remainingNetCents <= 0) return 0
+
+    const targetNet = remainingNetCents / 100
+
+    const intermediationRate = getFeePercentage(installments) / 100
+
+    // Anticipation Logic (1.6% or 1.15%)
+    const monthlyAnticipationRate = installments === 1 ? 1.15 : 1.6
+
+    // Rate * (N+1)/2
+    const anticipationRate = (monthlyAnticipationRate / 100) * ((installments + 1) / 2)
+
+    const totalRate = intermediationRate + anticipationRate
+
+    if (totalRate >= 1) {
+        throw new Error("Taxas excedem 100% do saldo residual")
+    }
+
+    // Fixed fee (0.49) applies to the sub-transaction (Card)
+    const cardTotalToCharge = (targetNet + FIXED_FEE) / (1 - totalRate)
+
+    return Math.round(cardTotalToCharge * 100)
+}
+
+/**
+ * Calculate full installment options list for HYBRID
+ */
+export function getHybridInstallmentOptions(productPriceCents: number, shippingCents: number, pixEntryCents: number, isTestProduct: boolean = false) {
+    const targetNet = productPriceCents + shippingCents
+
+    if (pixEntryCents >= targetNet) {
+        return [] // Fully paid by PIX
+    }
+
+    const remainingNet = targetNet - pixEntryCents
+    const options = []
+
+    for (let i = 1; i <= MAX_INSTALLMENTS; i++) {
+        // If it's the test product, bypass all fees
+        const cardTotalCents = isTestProduct ? remainingNet : calculateHybridTotal(targetNet, pixEntryCents, i)
+
+        const installmentValueCents = Math.round(cardTotalCents / i)
+        const feeAmountCents = cardTotalCents - remainingNet
+
+        options.push({
+            installment: i,
+            value: installmentValueCents,
+            total: cardTotalCents,
+            feeAmount: feeAmountCents,
+            label: `${i}x de ${formatCurrency(installmentValueCents / 100)} (Cartão: ${formatCurrency(cardTotalCents / 100)})`
+        })
+    }
+    return options
+}
