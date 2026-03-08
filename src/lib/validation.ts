@@ -46,7 +46,7 @@ export type Step2Data = z.infer<typeof Step2Schema>
 // Step 3: Payment Schema
 // ============================================
 export const Step3Schema = z.object({
-    metodoPagamento: z.enum(['pix', 'cartao', 'boleto']),
+    metodoPagamento: z.enum(['pix', 'cartao', 'boleto', 'hybrid']),
 })
 
 export type Step3Data = z.infer<typeof Step3Schema>
