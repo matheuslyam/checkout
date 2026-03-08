@@ -1,0 +1,23 @@
+{
+    "productId": "ambtus-flash",
+    "value": 7500,
+    "billingType": "PIX",
+    "paymentMethod": "HYBRID",
+    "pixEntry": 1000,
+    "customer": {
+        "name": "Test User Valid",
+        "email": "test@gmail.com",
+        "cpfCnpj": "64.399.419/0001-40",
+        "phone": "41988888888"
+    },
+    "address": {
+        "cep": "81270-140",
+        "endereco": "Rua Cidade de Rodeio",
+        "numero": "154",
+        "complemento": "Apto 1",
+        "bairro": "Cidade Industrial",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "uf": "PR"
+    }
+}
