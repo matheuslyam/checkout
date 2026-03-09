@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useEffect, useRef } from "react"
 
 // WhatsApp number for order tracking
-const WHATSAPP_NUMBER = "5511999999999" // Replace with actual number
+const WHATSAPP_NUMBER = "5511969084120" // +55 11 96908-4120
 
 export function CheckoutSuccess() {
     const { state, reset } = useCheckout()
