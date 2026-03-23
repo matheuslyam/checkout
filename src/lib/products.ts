@@ -4,7 +4,7 @@
 // IMPORTANT: Never trust client-side prices!
 // All pricing must come from this catalog.
 
-import { BIKES_CATALOG, Product } from './catalog'
+import { BIKES_CATALOG, Product, getActiveCatalog } from './catalog'
 
 export { type Product }
 
@@ -24,11 +24,11 @@ export function getProductById(id: string): Product | null {
 }
 
 /**
- * Get all products
- * @returns Array of all products
+ * Get all active products
+ * @returns Array of all active products
  */
 export function getAllProducts(): Product[] {
-    return Object.values(PRODUCTS)
+    return getActiveCatalog()
 }
 
 /**

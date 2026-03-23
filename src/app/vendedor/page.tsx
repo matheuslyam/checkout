@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { BIKES_CATALOG } from "@/lib/catalog"
+import { BIKES_CATALOG, getActiveCatalog } from "@/lib/catalog"
 import { Check, Copy } from "lucide-react"
 
 export default function SellerPage() {
@@ -53,7 +53,7 @@ export default function SellerPage() {
                             }}
                             className="w-full bg-neutral-950 border border-neutral-800 rounded-lg h-12 px-4 text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all appearance-none"
                         >
-                            {Object.values(BIKES_CATALOG).map((bike) => (
+                            {getActiveCatalog().map((bike) => (
                                 <option key={bike.id} value={bike.id}>
                                     {bike.name} - {(bike.price / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </option>
@@ -80,11 +80,17 @@ export default function SellerPage() {
                     {product && (
                         <div className="bg-neutral-950/50 rounded-xl p-4 border border-neutral-800/50 space-y-3">
                             <div className="aspect-[4/3] relative rounded-lg overflow-hidden bg-neutral-900">
-                                <img
-                                    src={product.image}
-                                    alt={product.name}
-                                    className="object-cover w-full h-full"
-                                />
+                                {product.image && product.image.trim() !== '' ? (
+                                    <img
+                                        src={product.image}
+                                        alt={product.name}
+                                        className="object-cover w-full h-full"
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center w-full h-full bg-neutral-900 text-neutral-500 font-medium text-sm tracking-wider">
+                                        MÍDIA NÃO DISPONÍVEL...
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <h3 className="font-medium text-neutral-200">{product.name}</h3>
